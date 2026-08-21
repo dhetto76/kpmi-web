@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Search, Package, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHero, Card, EmptyState, Input, Select, Badge } from "@/components/ui";
@@ -23,7 +24,7 @@ export default async function ProductCatalogPage({
   let query = supabase
     .from("products")
     .select(
-      "id, name, description, price, price_unit, category, business:businesses!inner(id, name, slug, city)",
+      "id, name, description, price, price_unit, category, images, business:businesses!inner(id, name, slug, city)",
     )
     .eq("is_published", true)
     .order("created_at", { ascending: false });
@@ -91,8 +92,18 @@ export default async function ProductCatalogPage({
                   const business = Array.isArray(p.business) ? p.business[0] : p.business;
                   return (
                     <Card key={p.id} className="card-lift flex h-full flex-col overflow-hidden">
-                      <div className="bg-maroon-deep pattern-geo grid h-32 place-items-center">
-                        <Package size={34} className="text-white/25" />
+                      <div className="bg-maroon-deep pattern-geo relative grid h-32 place-items-center overflow-hidden">
+                        {p.images?.[0] ? (
+                          <Image
+                            src={p.images[0]}
+                            alt=""
+                            fill
+                            sizes="(max-width: 768px) 100vw, 350px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <Package size={34} className="text-white/25" />
+                        )}
                       </div>
                       <div className="flex flex-1 flex-col p-5">
                         <h2 className="font-display font-bold text-maroon-900">{p.name}</h2>

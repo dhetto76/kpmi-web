@@ -102,3 +102,77 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------
+   Typography for Markdown-rendered article bodies (news/events).
+   Scoped so it never leaks into application UI.
+----------------------------------------------------------------*/
+.prose-kpmi {
+  color: #374151;
+  line-height: 1.75;
+}
+.prose-kpmi > * + * {
+  margin-top: 1.15rem;
+}
+.prose-kpmi h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-maroon-900);
+  margin-top: 2.5rem;
+  letter-spacing: -0.01em;
+}
+.prose-kpmi h3 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-maroon-900);
+  margin-top: 2rem;
+}
+.prose-kpmi a {
+  color: var(--color-maroon-600);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-kpmi a:hover {
+  color: var(--color-maroon-400);
+}
+.prose-kpmi strong {
+  font-weight: 700;
+  color: #111827;
+}
+.prose-kpmi ul,
+.prose-kpmi ol {
+  padding-left: 1.4rem;
+}
+.prose-kpmi ul {
+  list-style: disc;
+}
+.prose-kpmi ol {
+  list-style: decimal;
+}
+.prose-kpmi li + li {
+  margin-top: 0.4rem;
+}
+.prose-kpmi blockquote {
+  border-left: 3px solid var(--color-gold-500);
+  padding-left: 1.15rem;
+  font-style: italic;
+  color: #4b5563;
+}
+.prose-kpmi img {
+  border-radius: 0.75rem;
+  max-width: 100%;
+  height: auto;
+}
+.prose-kpmi code {
+  background: #f3f4f6;
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+}
+.prose-kpmi hr {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin-block: 2rem;
+}

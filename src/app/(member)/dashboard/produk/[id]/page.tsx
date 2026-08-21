@@ -48,7 +48,7 @@ export default async function EditProductPage({
         </h1>
       </div>
 
-      <ProductForm product={product} businesses={businesses ?? []} />
+      <ProductForm product={product} businesses={businesses ?? []} userId={user.id} />
     </div>
   );
 }

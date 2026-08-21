@@ -174,6 +174,7 @@ export async function createProduct(
 
   const parsed = productSchema.safeParse({
     ...Object.fromEntries(formData),
+    images: formData.getAll("images").filter(Boolean) as string[],
     is_published: formData.get("is_published") === "on",
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
@@ -203,6 +204,7 @@ export async function updateProduct(
 
   const parsed = productSchema.safeParse({
     ...Object.fromEntries(formData),
+    images: formData.getAll("images").filter(Boolean) as string[],
     is_published: formData.get("is_published") === "on",
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };

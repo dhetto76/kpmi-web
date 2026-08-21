@@ -55,6 +55,11 @@ export function SiteFooter() {
                 Katalog Produk
               </Link>
             </li>
+            <li>
+              <Link href="/berita" className="transition-colors hover:text-gold-300">
+                Berita &amp; Acara
+              </Link>
+            </li>
           </ul>
         </div>
 

@@ -50,7 +50,7 @@ export default async function NewProductPage({
         </h1>
       </div>
 
-      <ProductForm businesses={businesses} defaultBusinessId={business} />
+      <ProductForm businesses={businesses} defaultBusinessId={business} userId={user.id} />
     </div>
   );
 }

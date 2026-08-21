@@ -41,6 +41,7 @@ export const resetPasswordSchema = z.object({
 
 export const profileSchema = z.object({
   full_name: z.string().trim().min(2, "Nama lengkap wajib diisi"),
+  avatar_url: optionalString,
   phone: optionalString,
   city: optionalString,
   korwil: z.enum(KORWIL).optional().or(z.literal("")),
@@ -55,6 +56,10 @@ export const profileSchema = z.object({
 export const businessSchema = z.object({
   name: z.string().trim().min(2, "Nama usaha wajib diisi"),
   description: optionalString,
+
+  // Public URLs returned by Supabase Storage after upload.
+  logo_url: optionalString,
+  cover_url: optionalString,
 
   legal_form: z.enum(JENIS_BADAN_USAHA).optional().or(z.literal("")),
   npwp: optionalString,
@@ -100,6 +105,8 @@ export const productSchema = z.object({
   price: z.coerce.number().min(0, "Harga tidak boleh negatif").optional().or(z.literal("")),
   price_unit: optionalString,
   category: z.enum(PRODUCT_CATEGORY).optional().or(z.literal("")),
+  // Collected from FormData.getAll(), so always an array.
+  images: z.array(z.string()).default([]),
   is_published: z.boolean().default(false),
 });
 

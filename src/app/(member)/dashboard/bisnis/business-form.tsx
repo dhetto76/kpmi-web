@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
 import { createBusiness, updateBusiness, deleteBusiness } from "../actions";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { ImageUpload } from "@/components/ui/image-upload";
 import {
   JENIS_BADAN_USAHA, JENIS_USAHA, PRODUCT_CATEGORY, ROLE_USAHA,
   OMSET_PER_TAHUN, JUMLAH_KARYAWAN, STATUS_KANTOR, PASAR, PABRIK,
@@ -59,7 +60,13 @@ function OptionSelect({
   );
 }
 
-export function BusinessForm({ business }: { business?: Business }) {
+export function BusinessForm({
+  business,
+  userId,
+}: {
+  business?: Business;
+  userId: string;
+}) {
   const isEdit = !!business;
   const router = useRouter();
   const [message, setMessage] = useState<
@@ -129,6 +136,28 @@ export function BusinessForm({ business }: { business?: Business }) {
             />
           </Field>
         </div>
+        <div className="sm:col-span-2 grid gap-5 sm:grid-cols-[11rem_1fr]">
+          <Field label="Logo Usaha">
+            <ImageUpload
+              name="logo_url"
+              bucket="businesses"
+              userId={userId}
+              defaultValue={business?.logo_url}
+              label="Unggah logo"
+            />
+          </Field>
+          <Field label="Gambar Sampul">
+            <ImageUpload
+              name="cover_url"
+              bucket="businesses"
+              userId={userId}
+              defaultValue={business?.cover_url}
+              label="Unggah sampul"
+              aspect="wide"
+            />
+          </Field>
+        </div>
+
         <OptionSelect
           name="legal_form"
           label="Jenis Badan Usaha"

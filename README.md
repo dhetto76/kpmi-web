@@ -89,6 +89,9 @@ where id = (select id from auth.users where email = 'you@example.com');
 ## Repository layout
 
 ```
+content/news/               News + event Markdown files
+public/images/news/         Their images
+
 src/
 ├── app/
 │   ├── (public)/           Marketing site + public browse
@@ -96,6 +99,7 @@ src/
 │   │   ├── profil/               About, vision, structure
 │   │   ├── bisnis/               Directory + [slug] detail
 │   │   ├── produk/               Product catalog
+│   │   ├── berita/               News index + [slug] detail
 │   │   └── kontak/
 │   ├── (auth)/             Sign in, register, password reset
 │   ├── (member)/dashboard/ Member area — profile, businesses, products
@@ -103,10 +107,12 @@ src/
 │   └── auth/callback/      Email confirmation + reset handler
 ├── components/
 │   ├── ui/                 Button, Card, Field, Input, Badge…
+│   │   └── image-upload.tsx  Storage-backed upload widgets
 │   └── layout/             Header, footer, dashboard nav
 ├── lib/
 │   ├── supabase/           client / server / middleware helpers
 │   ├── reference-data.ts   Korwil, industries, categories (see below)
+│   ├── news.ts             Reads content/news/*.md
 │   ├── validations.ts      Zod schemas, shared client + server
 │   └── utils.ts            cn, slugify, formatPrice, formatDate
 ├── content/site.ts         Org details, navigation, static copy
@@ -171,6 +177,11 @@ the header and footer automatically. Add it to `NAV` in `src/content/site.ts`.
 `businessSchema` in `src/lib/validations.ts`, then to the form in
 `src/app/(member)/dashboard/bisnis/business-form.tsx`.
 
+**Add a news item or event** — put the image in `public/images/news/`, create a
+`.md` file in `content/news/`, commit, push. See `content/news/README.md` for
+the frontmatter format. Set `draft: true` to keep it visible in development but
+hidden in production.
+
 **Change site copy** — `src/content/site.ts`. No component changes needed.
 
 **Regenerate database types** once the project is live:
@@ -205,11 +216,18 @@ to the redirect allow-list so email confirmation and password reset links work.
 
 ## Deliberately not built
 
-Kept out of V1 to stay small. Each is additive, none needs a rewrite:
+Kept out to stay small. Each is additive, none needs a rewrite:
 
-- News/events (schema designed; add MDX files or a table when needed)
-- Image uploads through the UI (Storage buckets and policies already exist)
 - Member-to-member messaging
 - Business matchmaking
 - Google OAuth
 - Payments / membership dues
+- Database-backed news with an editor UI (see `docs/decisions.md` §7)
+
+---
+
+## Further reading
+
+- `docs/decisions.md` — why Supabase, why RLS is shaped this way, why news
+  lives in files rather than the database
+- `docs/supabase-migration.md` — moving to a different Supabase project

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Search, Building2, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHero, Card, EmptyState, Input, Select } from "@/components/ui";
@@ -21,7 +22,7 @@ export default async function BusinessDirectoryPage({
   // RLS already limits reads to approved rows; the filter documents intent.
   let query = supabase
     .from("businesses")
-    .select("id, name, slug, description, city, industry, logo_url")
+    .select("id, name, slug, description, city, industry, logo_url, cover_url")
     .eq("status", "approved")
     .order("name");
 
@@ -89,8 +90,18 @@ export default async function BusinessDirectoryPage({
                 {list.map((b) => (
                   <Link key={b.id} href={`/bisnis/${b.slug}`} className="card-lift block">
                     <Card className="h-full overflow-hidden">
-                      <div className="bg-maroon-deep pattern-geo grid h-32 place-items-center">
-                        <Building2 size={36} className="text-white/25" />
+                      <div className="bg-maroon-deep pattern-geo relative grid h-32 place-items-center overflow-hidden">
+                        {b.cover_url || b.logo_url ? (
+                          <Image
+                            src={(b.cover_url ?? b.logo_url)!}
+                            alt=""
+                            fill
+                            sizes="(max-width: 768px) 100vw, 350px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          <Building2 size={36} className="text-white/25" />
+                        )}
                       </div>
                       <div className="p-5">
                         <h2 className="font-display font-bold text-maroon-900">{b.name}</h2>

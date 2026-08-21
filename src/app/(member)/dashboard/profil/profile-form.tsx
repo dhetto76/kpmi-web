@@ -4,15 +4,18 @@ import { useState, useTransition } from "react";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import { updateProfile } from "../actions";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { KORWIL, KES } from "@/lib/reference-data";
 import type { Profile } from "@/types/database";
 
 export function ProfileForm({
   profile,
   email,
+  userId,
 }: {
   profile: Profile | null;
   email: string;
+  userId: string;
 }) {
   const [message, setMessage] = useState<
     { type: "ok" | "error"; text: string } | null
@@ -52,6 +55,18 @@ export function ProfileForm({
         )}
 
         <div className="grid gap-5 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Field label="Foto Profil">
+              <ImageUpload
+                name="avatar_url"
+                bucket="avatars"
+                userId={userId}
+                defaultValue={profile?.avatar_url}
+                label="Unggah foto"
+              />
+            </Field>
+          </div>
+
           <div className="sm:col-span-2">
             <Field label="Nama Lengkap" required>
               <Input name="full_name" defaultValue={profile?.full_name ?? ""} required />

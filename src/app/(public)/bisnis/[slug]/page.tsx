@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   Building2, MapPin, Phone, Mail, Globe, MessageCircle,
@@ -45,7 +46,7 @@ export default async function BusinessDetailPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, slug, description, price, price_unit, category")
+    .select("id, name, slug, description, price, price_unit, category, images")
     .eq("business_id", business.id)
     .eq("is_published", true)
     .order("name");
@@ -106,9 +107,21 @@ export default async function BusinessDetailPage({
           </Link>
 
           <div className="mt-5 flex flex-wrap items-start gap-5">
-            <div className="bg-gold-grad grid h-20 w-20 shrink-0 place-items-center rounded-2xl text-3xl font-extrabold text-maroon-900 shadow-lg">
-              {business.name.charAt(0)}
-            </div>
+            {business.logo_url ? (
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white shadow-lg">
+                <Image
+                  src={business.logo_url}
+                  alt={business.name}
+                  fill
+                  sizes="80px"
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div className="bg-gold-grad grid h-20 w-20 shrink-0 place-items-center rounded-2xl text-3xl font-extrabold text-maroon-900 shadow-lg">
+                {business.name.charAt(0)}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <h1 className="font-display text-3xl font-extrabold tracking-tight text-balance text-white sm:text-4xl">
                 {business.name}
@@ -159,10 +172,24 @@ export default async function BusinessDetailPage({
               ) : (
                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                   {products.map((p) => (
-                    <Card key={p.id} className="card-lift p-5">
-                      <div className="bg-maroon-deep mb-3 grid h-10 w-10 place-items-center rounded-lg text-gold-300">
-                        <Package size={18} />
-                      </div>
+                    <Card key={p.id} className="card-lift overflow-hidden">
+                      {p.images?.[0] ? (
+                        <div className="relative h-36 w-full">
+                          <Image
+                            src={p.images[0]}
+                            alt=""
+                            fill
+                            sizes="(max-width: 768px) 100vw, 350px"
+                            className="object-cover"
+                          />
+                        </div>
+                      ) : null}
+                      <div className="p-5">
+                      {!p.images?.[0] && (
+                        <div className="bg-maroon-deep mb-3 grid h-10 w-10 place-items-center rounded-lg text-gold-300">
+                          <Package size={18} />
+                        </div>
+                      )}
                       <h3 className="font-display font-bold text-maroon-900">{p.name}</h3>
                       {p.description && (
                         <p className="mt-1.5 line-clamp-2 text-sm text-gray-600">
@@ -174,6 +201,7 @@ export default async function BusinessDetailPage({
                           {formatPrice(p.price, p.price_unit)}
                         </span>
                         {p.category && <Badge tone="neutral">{p.category}</Badge>}
+                      </div>
                       </div>
                     </Card>
                   ))}

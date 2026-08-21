@@ -105,7 +105,7 @@ export default async function EditBusinessPage({
         )}
       </Card>
 
-      <BusinessForm business={business} />
+      <BusinessForm business={business} userId={user.id} />
     </div>
   );
 }

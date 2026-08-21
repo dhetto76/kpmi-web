@@ -1,9 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
-  ArrowRight, Users, BookOpen, Store, Search,
-  ShieldCheck, TrendingUp, Building2, Package, type LucideIcon,
+  ArrowRight, Users, BookOpen, Store, Search, ShieldCheck,
+  TrendingUp, Building2, Package, Newspaper, type LucideIcon,
 } from "lucide-react";
 import { ORG, MANFAAT, VISI } from "@/content/site";
+import { getAllNews } from "@/lib/news";
+import { formatDate } from "@/lib/utils";
 import { KORWIL } from "@/lib/reference-data";
 import { ButtonLink, SectionTitle, Card } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -36,6 +39,7 @@ async function getStats() {
 
 export default async function HomePage() {
   const stats = await getStats();
+  const news = getAllNews().slice(0, 3);
 
   const tiles = [
     { value: stats.members.toLocaleString("id-ID"), label: "Anggota" },
@@ -187,6 +191,60 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ------------------------------------------------------------ News */}
+      {news.length > 0 && (
+        <section className="bg-white py-24">
+          <div className="shell">
+            <SectionTitle
+              eyebrow="Informasi"
+              title="Berita &amp; Acara"
+              desc="Kabar terbaru dan agenda kegiatan komunitas."
+            />
+            <div className="mt-14 grid gap-7 md:grid-cols-3">
+              {news.map((item) => (
+                <Link
+                  key={item.slug}
+                  href={`/berita/${item.slug}`}
+                  className="card-lift block"
+                >
+                  <Card className="h-full overflow-hidden">
+                    <div className="bg-maroon-deep pattern-geo relative grid h-44 place-items-center overflow-hidden">
+                      {item.image ? (
+                        <Image
+                          src={item.image}
+                          alt=""
+                          fill
+                          sizes="(max-width: 768px) 100vw, 350px"
+                          className="object-cover"
+                        />
+                      ) : (
+                        <Newspaper size={32} className="text-white/25" />
+                      )}
+                    </div>
+                    <div className="p-6">
+                      <div className="mb-2 text-xs text-gray-400">
+                        {formatDate(item.date)}
+                      </div>
+                      <h3 className="font-display text-lg font-bold leading-snug text-maroon-900">
+                        {item.title}
+                      </h3>
+                      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-600">
+                        {item.excerpt}
+                      </p>
+                    </div>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+            <div className="mt-12 text-center">
+              <ButtonLink href="/berita" variant="outline" size="lg">
+                Lihat Semua Berita <ArrowRight size={18} />
+              </ButtonLink>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ------------------------------------------------------------- CTA */}
       <section className="bg-gold-grad py-20">

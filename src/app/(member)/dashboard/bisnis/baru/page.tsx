@@ -1,10 +1,18 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { BusinessForm } from "../business-form";
 
 export const metadata = { title: "Daftarkan Usaha" };
 
-export default function NewBusinessPage() {
+export default async function NewBusinessPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/masuk");
+
   return (
     <div className="space-y-6">
       <div>
@@ -22,7 +30,7 @@ export default function NewBusinessPage() {
         </p>
       </div>
 
-      <BusinessForm />
+      <BusinessForm userId={user.id} />
     </div>
   );
 }

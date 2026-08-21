@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
 import { createProduct, updateProduct, deleteProduct } from "../actions";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
+import { MultiImageUpload } from "@/components/ui/image-upload";
 import { PRODUCT_CATEGORY } from "@/lib/reference-data";
 import type { Product, Business } from "@/types/database";
 
@@ -12,10 +13,12 @@ export function ProductForm({
   product,
   businesses,
   defaultBusinessId,
+  userId,
 }: {
   product?: Product;
   businesses: Pick<Business, "id" | "name">[];
   defaultBusinessId?: string;
+  userId: string;
 }) {
   const isEdit = !!product;
   const router = useRouter();
@@ -138,6 +141,17 @@ export function ProductForm({
                   </option>
                 ))}
               </Select>
+            </Field>
+          </div>
+
+          <div className="sm:col-span-2">
+            <Field label="Gambar Produk">
+              <MultiImageUpload
+                name="images"
+                bucket="products"
+                userId={userId}
+                defaultValue={product?.images ?? []}
+              />
             </Field>
           </div>
 

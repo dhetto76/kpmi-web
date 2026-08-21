@@ -35,6 +35,7 @@ export const NAV: NavItem[] = [
     ],
   },
   { label: "Direktori Bisnis", href: "/bisnis" },
+  { label: "Berita", href: "/berita" },
   { label: "Produk", href: "/produk" },
   { label: "Kontak", href: "/kontak" },
 ];
