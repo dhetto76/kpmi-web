@@ -21,7 +21,7 @@ const ROLE_OPTIONS = [
 export default async function AdminMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; korwil?: string; role?: string }>;
+  searchParams: Promise<{ status?: string; korwil?: string; role?: string; q?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const ctx = await requireAdminContext();
@@ -36,12 +36,16 @@ export default async function AdminMembersPage({
   const korwil = ctx.isSuperAdmin && KORWIL.some((option) => option === params.korwil)
     ? params.korwil
     : undefined;
+  const search = params.q?.trim().slice(0, 100) ?? "";
+  const requestedPage = Number.parseInt(params.page ?? "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize = 50;
 
   // RLS already limits a korwil admin to their region; the explicit filter
   // also makes the scope clear and keeps the unfiltered result predictable.
   let query = supabase
     .from("profiles")
-    .select("id, full_name, korwil, phone, status, role, managed_korwil, created_at")
+    .select("id, full_name, korwil, phone, status, role, managed_korwil, created_at", { count: "exact" })
     .order("created_at", { ascending: false });
 
   if (!ctx.isSuperAdmin && ctx.managedKorwil) {
@@ -51,9 +55,19 @@ export default async function AdminMembersPage({
   }
   if (status) query = query.eq("status", status);
   if (role) query = query.eq("role", role);
+  if (search) {
+    // PostgREST's `or` expression is parsed as a mini-language. Quoting and
+    // escaping the user value keeps punctuation in names from changing it.
+    const escaped = search.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const pattern = `"%${escaped}%"`;
+    query = query.or(`full_name.ilike.${pattern},korwil.ilike.${pattern},phone.ilike.${pattern}`);
+  }
 
-  const { data: members } = await query;
+  query = query.range((page - 1) * pageSize, page * pageSize - 1);
+
+  const { data: members, count, error } = await query;
   const list = members ?? [];
+  const total = count ?? 0;
 
   return (
     <div className="space-y-6">
@@ -106,17 +120,22 @@ export default async function AdminMembersPage({
         </div>
       </form>
 
-      {list.length === 0 ? (
+      {error ? (
         <EmptyState
-          title="Tidak ada anggota pada filter ini"
-          desc="Ubah pilihan filter atau reset untuk menampilkan semua anggota."
+          title="Data anggota gagal dimuat"
+          desc={error.message}
           action={<Link href="/admin/anggota" className="text-sm font-bold text-maroon-600 hover:underline">Reset filter</Link>}
         />
       ) : (
         <MemberTable
+          key={`${search}-${status ?? ""}-${role ?? ""}-${korwil ?? ""}-${page}`}
           members={list as MemberRow[]}
           isSuperAdmin={ctx.isSuperAdmin}
           currentUserId={ctx.userId}
+          initialQuery={search}
+          total={total}
+          page={page}
+          pageSize={pageSize}
         />
       )}
     </div>

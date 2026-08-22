@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarDays,
   ChevronDown,
+  Filter,
   MapPin,
   Package,
   UserPlus,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminContext } from "@/lib/auth";
+import { KORWIL } from "@/lib/reference-data";
 
 const format = new Intl.NumberFormat("id-ID");
 
@@ -34,7 +36,7 @@ function MiniBarList({ items, color }: { items: ListItem[]; color: string }) {
     <div className="space-y-2.5">
       {items.map((item) => (
         <div key={item.label} className="grid grid-cols-[minmax(76px,1fr)_minmax(54px,1.15fr)_34px] items-center gap-2 text-[10px]">
-          <span className="truncate font-medium text-slate-700">{item.label}</span>
+          <span className="font-medium leading-tight text-slate-700">{item.label}</span>
           <span className="h-1 rounded-full bg-slate-100">
             <span className="block h-full rounded-full" style={{ width: `${(item.value / max) * 100}%`, backgroundColor: color }} />
           </span>
@@ -152,7 +154,7 @@ function DonutPanel({ title, subtitle, items, href, compact = false }: { title: 
           {items.map((item) => (
             <div key={item.label} className="flex min-w-0 items-center gap-2 text-[9px] text-slate-600">
               <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <span className="min-w-0 flex-1 leading-tight">{item.label}</span>
               <span className="shrink-0 font-semibold tabular-nums text-slate-700">{compact ? `${item.value} (${Math.round((item.value / total) * 100)}%)` : format.format(item.value)}</span>
             </div>
           ))}
@@ -163,22 +165,43 @@ function DonutPanel({ title, subtitle, items, href, compact = false }: { title: 
   );
 }
 
-export default async function AdminOverviewPage() {
+export default async function AdminOverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ korwil?: string; from?: string; to?: string }>;
+}) {
   const ctx = await requireAdminContext();
   const supabase = await createClient();
-  const region = ctx.isSuperAdmin ? null : ctx.managedKorwil;
+  const params = await searchParams;
+  const requestedKorwil = KORWIL.includes(params.korwil as (typeof KORWIL)[number]) ? params.korwil! : "";
+  const region = ctx.isSuperAdmin ? requestedKorwil || null : ctx.managedKorwil;
+  const validDate = (value?: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
+  const dateFrom = validDate(params.from);
+  const dateTo = validDate(params.to);
+
+  const applyDateRange = <T extends { gte: (column: string, value: string) => T; lte: (column: string, value: string) => T }>(query: T) => {
+    let filtered = query;
+    if (dateFrom) filtered = filtered.gte("created_at", `${dateFrom}T00:00:00.000Z`);
+    if (dateTo) filtered = filtered.lte("created_at", `${dateTo}T23:59:59.999Z`);
+    return filtered;
+  };
 
   const profileQuery = () => {
-    const query = supabase.from("profiles").select("*", { count: "exact", head: true });
-    return region ? query.eq("korwil", region) : query;
+    let query = supabase.from("profiles").select("*", { count: "exact", head: true });
+    if (region) query = query.eq("korwil", region);
+    return applyDateRange(query);
   };
   const businessQuery = () => {
-    const query = supabase.from("businesses").select("*, owner:profiles!inner(korwil)", { count: "exact", head: true });
-    return region ? query.eq("owner.korwil", region) : query;
+    let query = supabase.from("businesses").select("*, owner:profiles!inner(korwil)", { count: "exact", head: true });
+    if (region) query = query.eq("owner.korwil", region);
+    return applyDateRange(query);
   };
-  const productQuery = () => region
-    ? supabase.from("products").select("*, business:businesses!inner(owner:profiles!inner(korwil))", { count: "exact", head: true }).eq("business.owner.korwil", region)
-    : supabase.from("products").select("*", { count: "exact", head: true });
+  const productQuery = () => {
+    const baseQuery = region
+      ? supabase.from("products").select("*, business:businesses!inner(owner:profiles!inner(korwil))", { count: "exact", head: true }).eq("business.owner.korwil", region)
+      : supabase.from("products").select("*", { count: "exact", head: true });
+    return applyDateRange(baseQuery);
+  };
 
   const [members, approvedMembers, pendingMembers, rejectedMembers, businesses, approvedBusinesses, products, publishedProducts] = await Promise.all([
     profileQuery(),
@@ -194,10 +217,13 @@ export default async function AdminOverviewPage() {
   const memberTotal = members.count ?? 0;
   const businessTotal = businesses.count ?? 0;
   const productTotal = products.count ?? 0;
-  const korwilValues = distribute(memberTotal, [320, 280, 210, 180, 120, 80, 58]);
+  const korwilWeights = region ? [1] : [320, 280, 210, 180, 120, 80, 58];
+  const korwilValues = distribute(memberTotal, korwilWeights);
   const industryValues = distribute(businessTotal, [312, 168, 142, 116, 98]);
   const productValues = distribute(productTotal, [642, 486, 342, 286, 185]);
-  const korwilNames = ["Surabaya", "Bandung", "Yogyakarta", "Jakarta", "Makassar", "Medan", "Semarang"];
+  const regionalBusinessValues = distribute(businessTotal, region ? [1] : [210, 186, 152, 132, 96]);
+  const regionalProductValues = distribute(productTotal, region ? [1] : [642, 486, 342, 286, 185]);
+  const korwilNames = region ? [region] : ["Surabaya", "Bandung", "Yogyakarta", "Jakarta", "Makassar", "Medan", "Semarang"];
   const korwil = korwilNames.map((label, index) => ({ label, value: korwilValues[index] }));
   const industries = ["Perdagangan", "Kuliner", "Jasa", "Manufaktur", "Teknologi"].map((label, index) => ({ label, value: industryValues[index] }));
   const categories = ["Makanan & Minuman", "Fashion", "Kesehatan", "Kecantikan", "Elektronik"].map((label, index) => ({ label, value: productValues[index] }));
@@ -213,9 +239,9 @@ export default async function AdminOverviewPage() {
     const approved = Math.max(0, Math.round(item.value * 0.93));
     const waiting = Math.max(0, Math.round(item.value * 0.05));
     const rejected = Math.max(0, item.value - approved - waiting);
-    const business = distribute(businessTotal, [210, 186, 152, 132, 96])[index];
+    const business = regionalBusinessValues[index];
     const activeBusiness = Math.round(business * 0.91);
-    const products = productValues[index];
+    const products = regionalProductValues[index];
     const activeProducts = Math.round(products * 0.93);
     return { name: item.label, members: item.value, approved, waiting, rejected, business, activeBusiness, products, activeProducts };
   });
@@ -227,9 +253,37 @@ export default async function AdminOverviewPage() {
           <h1 className="font-display text-2xl font-extrabold tracking-[-0.025em] text-slate-950">Ringkasan</h1>
           <p className="mt-1 text-xs text-slate-500">Ringkasan data anggota, usaha, dan produk berdasarkan korwil dan status.</p>
         </div>
-        <button type="button" className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 shadow-sm">
-          <CalendarDays size={16} className="text-slate-500" /> 1 – 21 Agustus 2026 <ChevronDown size={14} />
-        </button>
+        <form method="get" className={`${CARD} flex w-full flex-wrap items-end gap-2 p-2 sm:w-auto`}>
+          <label className="min-w-[180px] flex-1 sm:flex-none">
+            <span className="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-500">Korwil</span>
+            <span className="relative block">
+              <MapPin size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <select name="korwil" defaultValue={requestedKorwil} disabled={!ctx.isSuperAdmin} className="h-9 w-full appearance-none rounded-md border border-slate-200 bg-white pl-8 pr-8 text-[11px] font-semibold text-slate-700 outline-none focus:border-maroon-500 disabled:bg-slate-50">
+                {ctx.isSuperAdmin && <option value="">Semua Korwil</option>}
+                {!ctx.isSuperAdmin && ctx.managedKorwil && <option value={ctx.managedKorwil}>{ctx.managedKorwil}</option>}
+                {ctx.isSuperAdmin && KORWIL.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
+              <ChevronDown size={13} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            </span>
+          </label>
+          <div className="min-w-[260px] flex-1 sm:flex-none">
+            <span className="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-500">Tanggal Daftar</span>
+            <div className="flex items-center gap-1.5">
+              <label className="relative">
+                <span className="sr-only">Tanggal mulai</span>
+                <CalendarDays size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="date" name="from" defaultValue={dateFrom} max={dateTo || undefined} className="h-9 w-[126px] rounded-md border border-slate-200 bg-white pl-7 pr-1 text-[10px] font-medium text-slate-700 outline-none focus:border-maroon-500" />
+              </label>
+              <span className="text-[10px] text-slate-400">s/d</span>
+              <label>
+                <span className="sr-only">Tanggal akhir</span>
+                <input type="date" name="to" defaultValue={dateTo} min={dateFrom || undefined} className="h-9 w-[126px] rounded-md border border-slate-200 bg-white px-2 text-[10px] font-medium text-slate-700 outline-none focus:border-maroon-500" />
+              </label>
+            </div>
+          </div>
+          <button type="submit" className="inline-flex h-9 items-center gap-2 rounded-md bg-maroon-600 px-3.5 text-[10px] font-bold text-white transition-colors hover:bg-maroon-700"><Filter size={13} /> Terapkan</button>
+          {(requestedKorwil || dateFrom || dateTo) && <Link href="/admin" className="inline-flex h-9 items-center rounded-md border border-slate-200 px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Reset</Link>}
+        </form>
       </div>
 
       <div className="grid gap-3.5 min-[1440px]:grid-cols-3">
@@ -238,18 +292,18 @@ export default async function AdminOverviewPage() {
         <MetricCard icon={Package} title="Produk" subtitle="Berdasarkan Kategori" total={productTotal} totalLabel="Total Produk" change="+12,3%" accent="#f28c00" iconClass="bg-orange-50 text-orange-500" items={categories} listTitle="Top 5 Kategori" href="/admin/produk" />
       </div>
 
-      <div className="grid gap-3.5 min-[1440px]:grid-cols-12">
-        <section className={`${CARD} min-w-0 p-3.5 min-[1440px]:col-span-4`}>
+      <div className="grid gap-3.5 lg:grid-cols-2 min-[1700px]:grid-cols-[repeat(13,minmax(0,1fr))]">
+        <section className={`${CARD} min-w-0 p-3.5 min-[1700px]:col-span-4`}>
           <PanelHeading title="Anggota per Korwil" subtitle="Jumlah anggota aktif per korwil" action={<button className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-[9px] font-semibold">Semua Status <ChevronDown size={12} /></button>} />
           <BarChart items={korwil} />
           <Link href="/admin/anggota" className="mt-4 flex items-center justify-end gap-2 text-[10px] font-semibold text-slate-700 hover:text-maroon-600">Lihat semua korwil <ArrowRight size={13} /></Link>
         </section>
-        <div className="min-[1440px]:col-span-3"><DonutPanel title="Usaha per Industri" subtitle="Distribusi usaha berdasarkan industri" items={industryDonut} href="/admin/bisnis" /></div>
-        <div className="min-[1440px]:col-span-3"><DonutPanel title="Produk per Kategori" subtitle="Distribusi produk berdasarkan kategori" items={productDonut} href="/admin/produk" /></div>
-        <div className="min-[1440px]:col-span-2"><DonutPanel title="Status Anggota" subtitle="Distribusi berdasarkan status" items={statusItems} compact /></div>
+        <div className="min-[1700px]:col-span-3"><DonutPanel title="Usaha per Industri" subtitle="Distribusi usaha berdasarkan industri" items={industryDonut} href="/admin/bisnis" /></div>
+        <div className="min-[1700px]:col-span-3"><DonutPanel title="Produk per Kategori" subtitle="Distribusi produk berdasarkan kategori" items={productDonut} href="/admin/produk" /></div>
+        <div className="min-[1700px]:col-span-3"><DonutPanel title="Status Anggota" subtitle="Distribusi berdasarkan status" items={statusItems} compact /></div>
       </div>
 
-      <div className="grid items-start gap-3.5 min-[1440px]:grid-cols-[minmax(0,1fr)_250px]">
+      <div className="grid items-start gap-3.5 min-[1440px]:grid-cols-[minmax(0,1fr)_320px]">
         <section className={`${CARD} min-w-0 overflow-hidden`}>
           <div className="p-3.5"><PanelHeading title="Ringkasan per Korwil" subtitle="Rekap jumlah anggota, usaha, dan produk per korwil" /></div>
           <div className="overflow-x-auto px-2 pb-2">
@@ -308,8 +362,8 @@ export default async function AdminOverviewPage() {
                 <div key={activity.title} className="flex items-start gap-2.5">
                   <span className={`grid size-7 shrink-0 place-items-center rounded-full ${activity.tone}`}><activity.icon size={14} /></span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[9px] font-bold text-slate-800">{activity.title}</p>
-                    <p className="mt-0.5 truncate text-[8px] text-slate-500">{activity.name}</p>
+                    <p className="text-[9px] font-bold leading-tight text-slate-800">{activity.title}</p>
+                    <p className="mt-0.5 text-[8px] leading-tight text-slate-500">{activity.name}</p>
                   </div>
                   <span className="shrink-0 pt-1 text-[8px] text-slate-400">{activity.time}</span>
                 </div>

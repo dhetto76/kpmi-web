@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Check, Search, Trash2, X } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, ChevronLeft, ChevronRight, Search, Trash2, X } from "lucide-react";
 import { Card, EmptyState, StatusBadge } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { ApprovalStatus, UserRole } from "@/types/database";
@@ -28,27 +29,46 @@ function memberRoleLabel(role: UserRole, managedKorwil: string | null) {
   return "Anggota";
 }
 
-export function MemberTable({ members, isSuperAdmin, currentUserId }: {
+export function MemberTable({ members, isSuperAdmin, currentUserId, initialQuery, total, page, pageSize }: {
   members: MemberRow[];
   isSuperAdmin: boolean;
   currentUserId: string;
+  initialQuery: string;
+  total: number;
+  page: number;
+  pageSize: number;
 }) {
-  const [query, setQuery] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const visible = useMemo(() => {
-    const term = query.trim().toLocaleLowerCase("id");
-    if (!term) return members;
-    return members.filter((member) =>
-      [member.full_name, member.korwil, member.phone]
-        .filter(Boolean)
-        .some((value) => value!.toLocaleLowerCase("id").includes(term)),
-    );
-  }, [members, query]);
+  useEffect(() => {
+    if (query.trim() === initialQuery) return;
+    const timer = window.setTimeout(() => {
+      const next = new URLSearchParams(searchParams.toString());
+      const term = query.trim();
+      if (term) next.set("q", term);
+      else next.delete("q");
+      next.delete("page");
+      router.replace(`/admin/anggota?${next.toString()}`, { scroll: false });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [initialQuery, query, router, searchParams]);
+
+  const visible = members;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+
+  function changePage(nextPage: number) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (nextPage <= 1) next.delete("page");
+    else next.set("page", String(nextPage));
+    router.push(`/admin/anggota?${next.toString()}`, { scroll: false });
+  }
 
   const selectableIds = visible
     .filter((member) => member.role === "member" && member.id !== currentUserId)
@@ -162,10 +182,14 @@ export function MemberTable({ members, isSuperAdmin, currentUserId }: {
       )}
 
       {visible.length === 0 ? (
-        <EmptyState title="Tidak ada anggota yang cocok" desc="Coba gunakan nama, korwil, atau nomor telepon lain." />
+        <EmptyState
+          title={initialQuery ? "Tidak ada anggota yang cocok" : "Tidak ada anggota pada filter ini"}
+          desc={initialQuery ? "Coba gunakan nama, korwil, atau nomor telepon lain." : "Ubah pilihan filter atau reset untuk menampilkan semua anggota."}
+        />
       ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full min-w-[48rem] text-sm">
+        <>
+          <Card className="overflow-x-auto">
+            <table className="w-full min-w-[48rem] text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-500">
                 <th className="w-12 px-5 py-3">
@@ -206,8 +230,23 @@ export function MemberTable({ members, isSuperAdmin, currentUserId }: {
                 );
               })}
             </tbody>
-          </table>
-        </Card>
+            </table>
+          </Card>
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600">
+            <p>
+              Menampilkan <span className="font-semibold text-gray-900">{(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)}</span> dari <span className="font-semibold text-gray-900">{total}</span> anggota
+            </p>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => changePage(page - 1)} disabled={page <= 1} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40">
+                <ChevronLeft size={15} /> Sebelumnya
+              </button>
+              <span className="min-w-20 text-center text-xs font-semibold">{page} / {pageCount}</span>
+              <button type="button" onClick={() => changePage(page + 1)} disabled={page >= pageCount} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40">
+                Berikutnya <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
