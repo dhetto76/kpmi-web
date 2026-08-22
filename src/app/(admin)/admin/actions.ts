@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdminContext, type AdminContext } from "@/lib/auth";
 import { KORWIL } from "@/lib/reference-data";
-import { businessSchema, productSchema } from "@/lib/validations";
+import { adminSetPasswordSchema, businessSchema, productSchema } from "@/lib/validations";
 import { slugify } from "@/lib/utils";
 
 export type ActionResult = { error: string } | { success: true };
@@ -245,6 +246,59 @@ export async function setMemberRole(
   if (error) return { error: "Gagal memperbarui peran." };
 
   revalidatePath("/admin/anggota");
+  return { success: true };
+}
+
+/* ------------------------------------------------------ Password management */
+
+/**
+ * Sets another account's password through the Supabase Auth Admin API.
+ * Super admins may manage every account. A regional admin may only manage a
+ * plain member in their own korwil.
+ */
+export async function setUserPassword(
+  id: string,
+  password: string,
+  confirmPassword: string,
+): Promise<ActionResult> {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(id)) return { error: "ID pengguna tidak valid." };
+
+  const parsed = adminSetPasswordSchema.safeParse({
+    password,
+    confirm_password: confirmPassword,
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const { supabase, ctx } = await requireAdmin();
+  const { data: target, error: targetError } = await supabase
+    .from("profiles")
+    .select("role, korwil")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (targetError || !target) return { error: "Pengguna tidak ditemukan." };
+
+  if (!ctx.isSuperAdmin) {
+    if (
+      target.role !== "member" ||
+      !ctx.managedKorwil ||
+      target.korwil !== ctx.managedKorwil
+    ) {
+      return { error: "Anda hanya dapat mengatur kata sandi anggota di korwil Anda." };
+    }
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { error: "Fitur kata sandi admin belum dikonfigurasi oleh pengelola sistem." };
+  }
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient.auth.admin.updateUserById(id, {
+    password: parsed.data.password,
+  });
+
+  if (error) return { error: "Gagal mengatur kata sandi pengguna." };
   return { success: true };
 }
 

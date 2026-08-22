@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Search, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHero, Card, EmptyState, Input, Select, Badge } from "@/components/ui";
-import { PRODUCT_CATEGORY } from "@/lib/reference-data";
+import { activeReferenceNames } from "@/lib/settings";
 import { ProductIcon } from "@/lib/category-icons";
 import { formatPrice } from "@/lib/utils";
 
@@ -36,6 +36,9 @@ export default async function ProductCatalogPage({
   const { data: products } = await query;
   const list = products ?? [];
 
+  // Editable in admin, so a retired category disappears from this filter.
+  const categories = await activeReferenceNames("product_category");
+
   return (
     <>
       <PageHero
@@ -60,7 +63,7 @@ export default async function ProductCatalogPage({
             </div>
             <Select name="category" defaultValue={category ?? ""}>
               <option value="">Semua kategori</option>
-              {PRODUCT_CATEGORY.map((c) => (
+              {categories.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>

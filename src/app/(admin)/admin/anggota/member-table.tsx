@@ -9,6 +9,7 @@ import type { ApprovalStatus, UserRole } from "@/types/database";
 import { approveMembers, deleteMembers } from "../actions";
 import { RoleControl } from "../role-control";
 import { StatusControl } from "../status-control";
+import { PasswordControl } from "../password-control";
 
 export type MemberRow = {
   id: string;
@@ -225,7 +226,17 @@ export function MemberTable({ members, isSuperAdmin, currentUserId, initialQuery
                         <RoleControl id={member.id} role={member.role} managedKorwil={member.managed_korwil} isSelf={member.id === currentUserId} />
                       </td>
                     )}
-                    <td className="px-5 py-3"><StatusControl kind="member" id={member.id} status={member.status} /></td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-start gap-2">
+                        <StatusControl kind="member" id={member.id} status={member.status} />
+                        {(isSuperAdmin || member.role === "member") && (
+                          <PasswordControl
+                            id={member.id}
+                            userName={member.full_name || "anggota tanpa nama"}
+                          />
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}

@@ -5,22 +5,32 @@ import { CheckCircle2, AlertCircle } from "lucide-react";
 import { updateProfile } from "../actions";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { ImageUpload } from "@/components/ui/image-upload";
-import { KORWIL, KES } from "@/lib/reference-data";
+import { KES } from "@/lib/reference-data";
 import type { Profile } from "@/types/database";
 
 export function ProfileForm({
   profile,
   email,
   userId,
+  korwilOptions,
 }: {
   profile: Profile | null;
   email: string;
   userId: string;
+  /** Active korwil, from the list administrators maintain. */
+  korwilOptions: string[];
 }) {
   const [message, setMessage] = useState<
     { type: "ok" | "error"; text: string } | null
   >(null);
   const [pending, startTransition] = useTransition();
+
+  // Keep the member's saved korwil selectable even if it has since been
+  // retired, so opening the form does not silently blank their region.
+  const korwilList =
+    profile?.korwil && !korwilOptions.includes(profile.korwil)
+      ? [...korwilOptions, profile.korwil]
+      : korwilOptions;
 
   function onSubmit(formData: FormData) {
     setMessage(null);
@@ -84,7 +94,7 @@ export function ProfileForm({
           <Field label="Koordinator Wilayah">
             <Select name="korwil" defaultValue={profile?.korwil ?? ""}>
               <option value="">— Pilih korwil —</option>
-              {KORWIL.map((k) => (
+              {korwilList.map((k) => (
                 <option key={k} value={k}>
                   {k}
                 </option>

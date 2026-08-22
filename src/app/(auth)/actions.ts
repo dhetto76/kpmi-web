@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema, resetPasswordSchema } from "@/lib/validations";
+import { getSiteSettings, isEnabled } from "@/lib/settings";
 import { EMAIL_ENABLED } from "@/content/site";
 
 export type ActionResult =
@@ -62,6 +63,16 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
     return { error: parsed.error.issues[0].message };
   }
 
+  // Enforced here, not only by hiding the form: the action is a public POST
+  // endpoint, so a closed registration has to be refused on the server.
+  const settings = await getSiteSettings();
+  if (!isEnabled(settings.registration_open)) {
+    return {
+      error:
+        "Pendaftaran anggota baru sedang ditutup. Silakan hubungi sekretariat KPMI.",
+    };
+  }
+
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
@@ -89,6 +100,13 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
       };
     }
     return { error: "Pendaftaran gagal. Silakan coba lagi." };
+  }
+
+  // Optional: skip the verification queue. Done through a security definer
+  // function because the escalation guard refuses a member changing their own
+  // status, which is exactly the protection that must stay in place.
+  if (isEnabled(settings.auto_approve_members) && data.user) {
+    await supabase.rpc("auto_approve_new_member", { target_id: data.user.id });
   }
 
   // When the project requires email confirmation, signUp returns a user but no

@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Search, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHero, Card, EmptyState, Input, Select } from "@/components/ui";
-import { JENIS_USAHA } from "@/lib/reference-data";
+import { activeReferenceNames } from "@/lib/settings";
 import { BusinessIcon } from "@/lib/category-icons";
 
 export const metadata = {
@@ -34,6 +34,10 @@ export default async function BusinessDirectoryPage({
   const { data: businesses } = await query;
   const list = businesses ?? [];
 
+  // Read from the editable list so a sector retired in admin stops being
+  // offered here, while businesses already filed under it stay reachable.
+  const industries = await activeReferenceNames("industry");
+
   return (
     <>
       <PageHero
@@ -58,7 +62,7 @@ export default async function BusinessDirectoryPage({
             </div>
             <Select name="industry" defaultValue={industry ?? ""}>
               <option value="">Semua industri</option>
-              {JENIS_USAHA.map((i) => (
+              {industries.map((i) => (
                 <option key={i} value={i}>
                   {i}
                 </option>

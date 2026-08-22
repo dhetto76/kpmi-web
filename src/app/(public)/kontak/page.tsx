@@ -1,14 +1,17 @@
 import { Mail, Phone, MapPin } from "lucide-react";
 import { PageHero, Card } from "@/components/ui";
-import { ORG } from "@/content/site";
+import { getSiteSettings } from "@/lib/settings";
 
 export const metadata = { title: "Kontak" };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  // Editable from admin → Pengaturan Sistem.
+  const { org_address, org_email, org_phone } = await getSiteSettings();
+
   const items = [
-    { icon: MapPin, label: "Alamat", value: ORG.address, href: null },
-    { icon: Mail, label: "Email", value: ORG.email, href: `mailto:${ORG.email}` },
-    { icon: Phone, label: "Telepon", value: ORG.phone, href: `tel:${ORG.phone}` },
+    { icon: MapPin, label: "Alamat", value: org_address, href: null },
+    { icon: Mail, label: "Email", value: org_email, href: `mailto:${org_email}` },
+    { icon: Phone, label: "Telepon", value: org_phone, href: `tel:${org_phone}` },
   ];
 
   return (

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { activeReferenceNames } from "@/lib/settings";
 import { ProfileForm } from "./profile-form";
 
 export const metadata = { title: "Profil Saya" };
@@ -17,6 +18,8 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .single();
 
+  const korwilOptions = await activeReferenceNames("korwil");
+
   return (
     <div className="space-y-6">
       <div>
@@ -28,7 +31,12 @@ export default async function ProfilePage() {
         </p>
       </div>
 
-      <ProfileForm profile={profile} email={user.email ?? ""} userId={user.id} />
+      <ProfileForm
+        profile={profile}
+        email={user.email ?? ""}
+        userId={user.id}
+        korwilOptions={korwilOptions}
+      />
     </div>
   );
 }

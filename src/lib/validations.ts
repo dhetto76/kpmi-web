@@ -37,6 +37,19 @@ export const resetPasswordSchema = z.object({
   email: z.string().email("Masukkan alamat email yang valid"),
 });
 
+export const adminSetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "Kata sandi minimal 8 karakter")
+      .max(72, "Kata sandi maksimal 72 karakter"),
+    confirm_password: z.string(),
+  })
+  .refine((data) => data.password === data.confirm_password, {
+    message: "Konfirmasi kata sandi tidak cocok",
+    path: ["confirm_password"],
+  });
+
 /* --------------------------------------------------------------- Profile */
 
 export const profileSchema = z.object({

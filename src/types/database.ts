@@ -31,6 +31,16 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface MemberPrivateDetails {
+  profile_id: string;
+  legacy_username: string | null;
+  address: string | null;
+  domicile_address: string | null;
+  legacy_registered_at: string | null;
+  import_source: string;
+  imported_at: string;
+}
+
 export interface Business {
   id: string;
   owner_id: string;
@@ -96,6 +106,31 @@ export interface Category {
   slug: string;
   kind: "business" | "product";
   sort_order: number;
+}
+
+/**
+ * An editable lookup value — the korwil, product category, and industry lists
+ * administrators maintain under /admin. Seeded from src/lib/reference-data.ts,
+ * which stays the compile-time source for the Zod enums.
+ */
+export interface ReferenceValueRow {
+  id: string;
+  kind: "korwil" | "product_category" | "industry";
+  name: string;
+  slug: string;
+  /** Retired values stay on existing records but are hidden from pickers. */
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A single site-wide setting, edited under /admin/pengaturan. */
+export interface SiteSetting {
+  key: string;
+  value: string;
+  updated_at: string;
+  updated_by: string | null;
 }
 
 /** A product joined to its owning business — the shape browse pages need. */

@@ -2,7 +2,19 @@ import Link from "next/link";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { NAV, ORG } from "@/content/site";
 
-export function SiteFooter() {
+/**
+ * Contact details come from admin → Pengaturan Sistem when set, falling back
+ * to ORG so the footer is correct before anyone has touched the settings.
+ */
+export function SiteFooter({
+  contact,
+}: {
+  contact?: { email: string; phone: string; address: string };
+} = {}) {
+  const email = contact?.email || ORG.email;
+  const phone = contact?.phone || ORG.phone;
+  const address = contact?.address || ORG.address;
+
   return (
     <footer className="bg-maroon-950 text-white/80">
       <div className="gold-rule" />
@@ -68,17 +80,17 @@ export function SiteFooter() {
           <ul className="space-y-3 text-sm">
             <li className="flex gap-3">
               <MapPin size={18} className="shrink-0 text-gold-500" />
-              {ORG.address}
+              {address}
             </li>
             <li className="flex gap-3">
               <Mail size={18} className="shrink-0 text-gold-500" />
-              <a href={`mailto:${ORG.email}`} className="hover:text-gold-300">
-                {ORG.email}
+              <a href={`mailto:${email}`} className="hover:text-gold-300">
+                {email}
               </a>
             </li>
             <li className="flex gap-3">
               <Phone size={18} className="shrink-0 text-gold-500" />
-              {ORG.phone}
+              {phone}
             </li>
           </ul>
         </div>
