@@ -60,6 +60,36 @@ export async function setMemberStatus(
   return { success: true };
 }
 
+export async function deleteMembers(
+  ids: string[],
+): Promise<{ error: string } | { success: true; deletedCount: number }> {
+  const uniqueIds = [...new Set(ids)];
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  if (uniqueIds.length === 0) return { error: "Pilih setidaknya satu anggota." };
+  if (uniqueIds.length > 100) return { error: "Maksimal 100 anggota sekali hapus." };
+  if (uniqueIds.some((id) => !uuid.test(id))) return { error: "ID anggota tidak valid." };
+
+  const { supabase } = await requireAdmin();
+  const { data, error } = await supabase.rpc("delete_members", {
+    target_ids: uniqueIds,
+  });
+
+  if (error) return { error: "Gagal menghapus anggota." };
+
+  const deletedCount = typeof data === "number" ? data : 0;
+  if (deletedCount === 0) {
+    return { error: "Tidak ada anggota yang dapat dihapus." };
+  }
+
+  revalidatePath("/admin/anggota");
+  revalidatePath("/admin/bisnis");
+  revalidatePath("/admin/produk");
+  revalidatePath("/bisnis");
+  revalidatePath("/produk");
+  return { success: true, deletedCount };
+}
+
 export async function setBusinessStatus(
   id: string,
   status: string,
