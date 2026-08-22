@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, ArrowRight, Building2 } from "lucide-react";
+import { Plus, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, ButtonLink, StatusBadge, EmptyState } from "@/components/ui";
+import { BusinessIcon } from "@/lib/category-icons";
 
 export const metadata = { title: "Usaha Saya" };
 
@@ -54,7 +55,7 @@ export default async function BusinessListPage() {
               <Card className="h-full p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="bg-maroon-deep grid h-11 w-11 shrink-0 place-items-center rounded-xl text-gold-300">
-                    <Building2 size={20} />
+                    <BusinessIcon industry={b.industry} size={20} />
                   </div>
                   <StatusBadge status={b.status} />
                 </div>

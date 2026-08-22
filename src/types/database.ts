@@ -9,7 +9,7 @@
  * After that it is GENERATED — do not hand-edit.
  */
 
-export type UserRole = "member" | "admin";
+export type UserRole = "member" | "admin_korwil" | "super_admin";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export interface Profile {
@@ -24,6 +24,8 @@ export interface Profile {
   join_reason: string | null;
   kes: string | null;
   role: UserRole;
+  /** Region this profile administers. Only set for role = "admin_korwil". */
+  managed_korwil: string | null;
   status: ApprovalStatus;
   created_at: string;
   updated_at: string;

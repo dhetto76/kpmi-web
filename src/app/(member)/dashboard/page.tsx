@@ -21,7 +21,16 @@ export default async function DashboardPage() {
         .select("id, name, slug, status, city, industry")
         .eq("owner_id", user.id)
         .order("created_at", { ascending: false }),
-      supabase.from("products").select("*", { count: "exact", head: true }),
+      // Scoped through the owner's businesses. RLS alone is not enough here:
+      // an admin may read every product, so an unscoped count would report the
+      // whole platform on their own dashboard.
+      supabase
+        .from("products")
+        .select("*, business:businesses!inner(owner_id)", {
+          count: "exact",
+          head: true,
+        })
+        .eq("business.owner_id", user.id),
     ]);
 
   const ownedBusinesses = businesses ?? [];

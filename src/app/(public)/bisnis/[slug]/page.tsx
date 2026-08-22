@@ -3,11 +3,12 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import {
   Building2, MapPin, Phone, Mail, Globe, MessageCircle,
-  Calendar, Users, Package, ArrowLeft,
+  Calendar, Users, ArrowLeft,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, Badge } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
+import { BusinessIcon, ProductIcon } from "@/lib/category-icons";
 
 export async function generateMetadata({
   params,
@@ -118,8 +119,8 @@ export default async function BusinessDetailPage({
                 />
               </div>
             ) : (
-              <div className="bg-gold-grad grid h-20 w-20 shrink-0 place-items-center rounded-2xl text-3xl font-extrabold text-maroon-900 shadow-lg">
-                {business.name.charAt(0)}
+              <div className="bg-gold-grad grid h-20 w-20 shrink-0 place-items-center rounded-2xl text-maroon-900 shadow-lg">
+                <BusinessIcon industry={business.industry} size={34} strokeWidth={1.75} />
               </div>
             )}
             <div className="min-w-0 flex-1">
@@ -187,7 +188,7 @@ export default async function BusinessDetailPage({
                       <div className="p-5">
                       {!p.images?.[0] && (
                         <div className="bg-maroon-deep mb-3 grid h-10 w-10 place-items-center rounded-lg text-gold-300">
-                          <Package size={18} />
+                          <ProductIcon category={p.category} size={18} />
                         </div>
                       )}
                       <h3 className="font-display font-bold text-maroon-900">{p.name}</h3>

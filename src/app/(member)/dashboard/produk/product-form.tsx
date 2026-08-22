@@ -3,22 +3,44 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
-import { createProduct, updateProduct, deleteProduct } from "../actions";
+import {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  type ActionResult,
+} from "../actions";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { MultiImageUpload } from "@/components/ui/image-upload";
 import { PRODUCT_CATEGORY } from "@/lib/reference-data";
 import type { Product, Business } from "@/types/database";
 
+type SaveAction = (id: string, formData: FormData) => Promise<ActionResult>;
+type RemoveAction = (id: string) => Promise<ActionResult>;
+
+/**
+ * The product form, shared by the member dashboard and the admin panel.
+ * Only the server action and the page to return to differ between the two.
+ */
 export function ProductForm({
   product,
   businesses,
   defaultBusinessId,
   userId,
+  updateAction = updateProduct,
+  deleteAction = deleteProduct,
+  backHref = "/dashboard/produk",
 }: {
   product?: Product;
   businesses: Pick<Business, "id" | "name">[];
   defaultBusinessId?: string;
+  /**
+   * Whose folder uploaded images land in. Storage policies key on the
+   * uploader's id, so an admin passes their own.
+   */
   userId: string;
+  updateAction?: SaveAction;
+  deleteAction?: RemoveAction;
+  backHref?: string;
 }) {
   const isEdit = !!product;
   const router = useRouter();
@@ -35,7 +57,7 @@ export function ProductForm({
     setMessage(null);
     startTransition(async () => {
       const result = isEdit
-        ? await updateProduct(product.id, formData)
+        ? await updateAction(product.id, formData)
         : await createProduct(businessId, formData);
 
       if (result && "error" in result) {
@@ -48,11 +70,11 @@ export function ProductForm({
 
   function onDelete() {
     startTransition(async () => {
-      const result = await deleteProduct(product!.id);
+      const result = await deleteAction(product!.id);
       if ("error" in result) {
         setMessage({ type: "error", text: result.error });
       } else {
-        router.push("/dashboard/produk");
+        router.push(backHref);
       }
     });
   }

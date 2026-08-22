@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Shield, ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminContext, roleLabel } from "@/lib/auth";
 import { AdminNav } from "./admin-nav";
 
 export const metadata = { title: "Panel Admin" };
@@ -11,27 +10,18 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/masuk");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.role !== "admin") redirect("/dashboard");
+  const { role, managedKorwil } = await requireAdminContext();
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-maroon-deep">
         <div className="shell flex h-16 items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5 text-white">
-            <Shield size={20} className="text-gold-300" />
+          <div className="flex min-w-0 items-center gap-2.5 text-white">
+            <Shield size={20} className="shrink-0 text-gold-300" />
             <span className="font-display font-extrabold">Panel Admin</span>
+            <span className="truncate rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-semibold text-gold-200">
+              {roleLabel(role, managedKorwil)}
+            </span>
           </div>
           <Link
             href="/dashboard"

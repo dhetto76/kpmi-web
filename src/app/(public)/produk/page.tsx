@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Package, Building2 } from "lucide-react";
+import { Search, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHero, Card, EmptyState, Input, Select, Badge } from "@/components/ui";
 import { PRODUCT_CATEGORY } from "@/lib/reference-data";
+import { ProductIcon } from "@/lib/category-icons";
 import { formatPrice } from "@/lib/utils";
 
 export const metadata = {
@@ -102,7 +103,7 @@ export default async function ProductCatalogPage({
                             className="object-cover"
                           />
                         ) : (
-                          <Package size={34} className="text-white/25" />
+                          <ProductIcon category={p.category} size={34} className="text-white/25" />
                         )}
                       </div>
                       <div className="flex flex-1 flex-col p-5">

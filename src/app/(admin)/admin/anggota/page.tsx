@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Card, StatusBadge, EmptyState } from "@/components/ui";
 import { StatusControl } from "../status-control";
+import { RoleControl } from "../role-control";
+import { requireAdminContext, roleLabel } from "@/lib/auth";
 import { formatDate, cn } from "@/lib/utils";
 
 const FILTERS = [
@@ -18,11 +20,19 @@ export default async function AdminMembersPage({
 }) {
   const { status } = await searchParams;
 
+  const ctx = await requireAdminContext();
+
   const supabase = await createClient();
+  // RLS already limits a korwil admin to their region; the filter keeps the
+  // "Semua" count honest rather than silently returning a scoped list.
   let query = supabase
     .from("profiles")
-    .select("id, full_name, korwil, phone, status, role, created_at")
+    .select("id, full_name, korwil, phone, status, role, managed_korwil, created_at")
     .order("created_at", { ascending: false });
+
+  if (!ctx.isSuperAdmin && ctx.managedKorwil) {
+    query = query.eq("korwil", ctx.managedKorwil);
+  }
 
   if (status) query = query.eq("status", status);
 
@@ -67,6 +77,7 @@ export default async function AdminMembersPage({
                 <th className="px-5 py-3 font-bold">Kontak</th>
                 <th className="px-5 py-3 font-bold">Bergabung</th>
                 <th className="px-5 py-3 font-bold">Status</th>
+                {ctx.isSuperAdmin && <th className="px-5 py-3 font-bold">Peran</th>}
                 <th className="px-5 py-3 font-bold">Aksi</th>
               </tr>
             </thead>
@@ -77,8 +88,10 @@ export default async function AdminMembersPage({
                     <div className="font-semibold text-gray-900">
                       {m.full_name || "(tanpa nama)"}
                     </div>
-                    {m.role === "admin" && (
-                      <span className="text-xs font-bold text-gold-600">Admin</span>
+                    {m.role !== "member" && (
+                      <span className="text-xs font-bold text-gold-600">
+                        {roleLabel(m.role, m.managed_korwil)}
+                      </span>
                     )}
                   </td>
                   <td className="px-5 py-3 text-gray-600">{m.korwil ?? "—"}</td>
@@ -89,6 +102,16 @@ export default async function AdminMembersPage({
                   <td className="px-5 py-3">
                     <StatusBadge status={m.status} />
                   </td>
+                  {ctx.isSuperAdmin && (
+                    <td className="px-5 py-3">
+                      <RoleControl
+                        id={m.id}
+                        role={m.role}
+                        managedKorwil={m.managed_korwil}
+                        isSelf={m.id === ctx.userId}
+                      />
+                    </td>
+                  )}
                   <td className="px-5 py-3">
                     <StatusControl kind="member" id={m.id} status={m.status} />
                   </td>

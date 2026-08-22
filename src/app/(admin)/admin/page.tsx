@@ -1,20 +1,43 @@
 import Link from "next/link";
 import { Users, Building2, Package, Clock, ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminContext } from "@/lib/auth";
 import { Card } from "@/components/ui";
 
 export default async function AdminOverviewPage() {
+  const ctx = await requireAdminContext();
   const supabase = await createClient();
+
+  // A korwil admin's counts cover their region only, so the queue numbers match
+  // the rows they can actually act on.
+  const region = ctx.isSuperAdmin ? null : ctx.managedKorwil;
+
+  const profileQuery = () => {
+    const q = supabase.from("profiles").select("*", { count: "exact", head: true });
+    return region ? q.eq("korwil", region) : q;
+  };
+  const businessQuery = () => {
+    const q = supabase
+      .from("businesses")
+      .select("*, owner:profiles!inner(korwil)", { count: "exact", head: true });
+    return region ? q.eq("owner.korwil", region) : q;
+  };
 
   const [members, pendingMembers, businesses, pendingBusinesses, products] =
     await Promise.all([
-      supabase.from("profiles").select("*", { count: "exact", head: true }),
-      supabase.from("profiles").select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
-      supabase.from("businesses").select("*", { count: "exact", head: true }),
-      supabase.from("businesses").select("*", { count: "exact", head: true })
-        .eq("status", "pending"),
-      supabase.from("products").select("*", { count: "exact", head: true }),
+      profileQuery(),
+      profileQuery().eq("status", "pending"),
+      businessQuery(),
+      businessQuery().eq("status", "pending"),
+      region
+        ? supabase
+            .from("products")
+            .select("*, business:businesses!inner(owner:profiles!inner(korwil))", {
+              count: "exact",
+              head: true,
+            })
+            .eq("business.owner.korwil", region)
+        : supabase.from("products").select("*", { count: "exact", head: true }),
     ]);
 
   const queues = [

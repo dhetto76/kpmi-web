@@ -42,8 +42,18 @@ In the Supabase SQL Editor, run these in order:
 supabase/migrations/20260820000001_initial_schema.sql
 supabase/migrations/20260820000002_rls_policies.sql
 supabase/migrations/20260820000003_storage.sql
+supabase/migrations/20260821000003_user_role_enum.sql
+supabase/migrations/20260821000004_korwil_admin_role.sql
+supabase/migrations/20260821000005_bootstrap_super_admin.sql
 supabase/seed.sql
 ```
+
+Run each file as its own batch, not all pasted together. `20260821000003`
+adds enum values, and Postgres cannot use a new enum value in the same
+transaction that adds it — `20260821000004` references those values.
+
+`20260821000005` grants Super Admin to a single hardcoded email. Edit
+`target_email` in that file before running it on a new project.
 
 Or with the Supabase CLI:
 
@@ -75,14 +85,21 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-### 5. Make yourself an admin
+### 5. Make yourself a Super Admin
 
-Register through the UI, then in the Supabase SQL Editor:
+Roles are `member`, `admin_korwil`, and `super_admin`. Nobody can promote
+themselves — a database trigger blocks it — so the first Super Admin is granted
+out-of-band. Register through the UI first so the profile row exists, then run
+`20260821000005_bootstrap_super_admin.sql`, or directly:
 
 ```sql
-update profiles set role = 'admin', status = 'approved'
+update profiles set role = 'super_admin', status = 'approved', managed_korwil = null
 where id = (select id from auth.users where email = 'you@example.com');
 ```
+
+After that, appoint Admin Korwil accounts from **Panel Admin → Anggota** — no
+SQL needed. Each one is scoped to a single region via `managed_korwil` and can
+approve members, businesses, and products only within it.
 
 ---
 
@@ -150,8 +167,15 @@ The rules:
 - Members cannot change their own `role` or `status`, nor approve their own
   business. Database triggers block this, because an `UPDATE` policy cannot
   express "these columns are off limits".
-- Admins manage everything, via a `security definer` `is_admin()` helper that
-  avoids RLS recursion.
+- A **Super Admin** manages everything platform-wide.
+- An **Admin Korwil** manages only their own region — members whose `korwil`
+  matches their `managed_korwil`, those members' businesses, and those
+  businesses' products. They cannot grant roles, move a member between regions,
+  or approve their own business.
+- Scoping runs through the *owner's* `korwil`, never `businesses.city`, which is
+  free text and would not reliably match a region name.
+- The helpers `is_super_admin()`, `admin_korwil_region()`, and `is_admin()` are
+  all `security definer` to avoid RLS recursion.
 
 ---
 
@@ -231,3 +255,5 @@ Kept out to stay small. Each is additive, none needs a rewrite:
 - `docs/decisions.md` — why Supabase, why RLS is shaped this way, why news
   lives in files rather than the database
 - `docs/supabase-migration.md` — moving to a different Supabase project
+- `docs/hero-carousel.md` — adding, editing, and reordering the homepage banner
+  slides, and swapping the gradients for real photographs

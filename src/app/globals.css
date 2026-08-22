@@ -43,54 +43,74 @@
   }
 }
 
-@layer components {
-  /* Signature gradients from the KPMI brand. */
-  .bg-maroon-deep {
-    background-image: linear-gradient(135deg, #6b0000, #8b0000);
-  }
-  .bg-maroon-bright {
-    background-image: linear-gradient(135deg, #8b0000, #b22222);
-  }
-  .bg-gold-grad {
-    background-image: linear-gradient(135deg, #c9a227, #f5d060);
-  }
+/* These are registered with `@utility`, not `@layer components`, on purpose.
+   Tailwind v4 declares `@layer theme, base, components, utilities`, so the
+   utilities layer always wins over components — a `.bg-maroon-deep` defined
+   as a component would lose to Tailwind's own `bg-*` utilities and the hero
+   would render white. `@utility` sorts these into the utilities layer where
+   they compete on equal footing. */
 
-  /* Three-stop gold shimmer used as a section divider. */
-  .gold-rule {
-    height: 3px;
-    background-image: linear-gradient(90deg, #c9a227, #f5d060, #c9a227);
-    border-radius: 999px;
-  }
+/* Signature gradients from the KPMI brand. */
+@utility bg-maroon-deep {
+  background-image: linear-gradient(135deg, #6b0000, #8b0000);
+}
+@utility bg-maroon-bright {
+  background-image: linear-gradient(135deg, #8b0000, #b22222);
+}
+@utility bg-gold-grad {
+  background-image: linear-gradient(135deg, #c9a227, #f5d060);
+}
 
-  .text-gold-grad {
-    background-image: linear-gradient(135deg, #c9a227, #f5d060);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
+/* Three-stop gold shimmer used as a section divider. */
+@utility gold-rule {
+  height: 3px;
+  background-image: linear-gradient(90deg, #c9a227, #f5d060, #c9a227);
+  border-radius: 999px;
+}
 
-  .card-lift {
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-  .card-lift:hover {
+@utility text-gold-grad {
+  background-image: linear-gradient(135deg, #c9a227, #f5d060);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility card-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  &:hover {
     transform: translateY(-3px);
     box-shadow: 0 18px 40px -12px rgb(139 0 0 / 0.25);
   }
-
-  .shell {
-    width: 100%;
-    margin-inline: auto;
-    padding-inline: 1.25rem;
-    max-width: 80rem;
-  }
 }
 
-/* Subtle geometric motif for dark hero backdrops. */
-.pattern-geo {
-  background-image:
-    radial-gradient(circle at 25px 25px, rgba(255, 255, 255, 0.06) 2px, transparent 0),
-    radial-gradient(circle at 75px 75px, rgba(201, 162, 39, 0.1) 2px, transparent 0);
-  background-size: 100px 100px;
+@utility shell {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  max-width: 80rem;
+}
+
+/* Subtle geometric dot motif for dark hero backdrops.
+
+   Drawn as a ::before overlay rather than a `background-image`, because it is
+   always paired with a `.bg-maroon-*` gradient. Both would otherwise set
+   `background-image` on the same element and the later utility would win —
+   blanking the dots while leaving this rule's `background-size` behind, which
+   tiles the gradient into 100px squares. A separate layer composites instead
+   of competing, so the dots sit cleanly on top of the gradient. */
+@utility pattern-geo {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      radial-gradient(circle at 25px 25px, rgba(255, 255, 255, 0.06) 2px, transparent 0),
+      radial-gradient(circle at 75px 75px, rgba(201, 162, 39, 0.1) 2px, transparent 0);
+    background-size: 100px 100px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

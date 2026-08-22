@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, StatusBadge, EmptyState } from "@/components/ui";
 import { StatusControl } from "../status-control";
+import { requireAdminContext } from "@/lib/auth";
 import { formatDate, cn } from "@/lib/utils";
 
 const FILTERS = [
@@ -19,11 +20,21 @@ export default async function AdminBusinessesPage({
 }) {
   const { status } = await searchParams;
 
+  const ctx = await requireAdminContext();
+
   const supabase = await createClient();
+  // Scoped through the owner's korwil — businesses.city is free text and does
+  // not reliably match a korwil name.
   let query = supabase
     .from("businesses")
-    .select("id, name, slug, city, industry, status, created_at, owner:profiles(full_name)")
+    .select(
+      "id, name, slug, city, industry, status, created_at, owner:profiles!inner(full_name, korwil)",
+    )
     .order("created_at", { ascending: false });
+
+  if (!ctx.isSuperAdmin && ctx.managedKorwil) {
+    query = query.eq("owner.korwil", ctx.managedKorwil);
+  }
 
   if (status) query = query.eq("status", status);
 
@@ -78,7 +89,12 @@ export default async function AdminBusinessesPage({
                   <tr key={b.id}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900">{b.name}</span>
+                        <Link
+                          href={`/admin/bisnis/${b.id}`}
+                          className="font-semibold text-gray-900 hover:text-maroon-600 hover:underline"
+                        >
+                          {b.name}
+                        </Link>
                         {b.status === "approved" && (
                           <Link
                             href={`/bisnis/${b.slug}`}
@@ -103,7 +119,16 @@ export default async function AdminBusinessesPage({
                       <StatusBadge status={b.status} />
                     </td>
                     <td className="px-5 py-3">
-                      <StatusControl kind="business" id={b.id} status={b.status} />
+                      <div className="flex items-center gap-1.5">
+                        <StatusControl kind="business" id={b.id} status={b.status} />
+                        <Link
+                          href={`/admin/bisnis/${b.id}`}
+                          title="Ubah data usaha"
+                          className="rounded-lg bg-gray-100 p-2 text-gray-600 transition-colors hover:bg-maroon-50 hover:text-maroon-600"
+                        >
+                          <Pencil size={15} />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );

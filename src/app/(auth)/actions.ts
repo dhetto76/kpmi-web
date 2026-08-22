@@ -5,8 +5,12 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { signInSchema, signUpSchema, resetPasswordSchema } from "@/lib/validations";
+import { EMAIL_ENABLED } from "@/content/site";
 
-export type ActionResult = { error: string } | { success: true };
+export type ActionResult =
+  | { error: string }
+  | { success: true }
+  | { success: true; message: string };
 
 /**
  * Auth server actions.
@@ -29,6 +33,15 @@ export async function signIn(formData: FormData): Promise<ActionResult> {
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
+    // An unconfirmed account is not a wrong password — saying so sends people
+    // off resetting a password that was fine. This leaks nothing an attacker
+    // could not already learn by signing up with the address.
+    if (error.code === "email_not_confirmed") {
+      return {
+        error:
+          "Email Anda belum dikonfirmasi. Silakan buka email dari kami dan klik tautan konfirmasi.",
+      };
+    }
     // Do not leak whether the address exists.
     return { error: "Email atau kata sandi salah." };
   }
@@ -52,7 +65,7 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
@@ -66,11 +79,33 @@ export async function signUp(formData: FormData): Promise<ActionResult> {
     if (error.message.includes("already registered")) {
       return { error: "Email ini sudah terdaftar. Silakan masuk." };
     }
+    // Supabase's built-in SMTP is capped at a few messages per hour. Without a
+    // custom SMTP provider this is the limit real signups will hit first, and
+    // "coba lagi" is misleading when retrying immediately cannot work.
+    if (error.code === "over_email_send_rate_limit") {
+      return {
+        error:
+          "Terlalu banyak percobaan pendaftaran saat ini. Silakan coba lagi dalam satu jam.",
+      };
+    }
     return { error: "Pendaftaran gagal. Silakan coba lagi." };
   }
 
+  // When the project requires email confirmation, signUp returns a user but no
+  // session — the account exists yet cannot sign in until the link is clicked.
+  // Redirecting to /dashboard here would bounce off the proxy straight back to
+  // /masuk, which reads to the user as "registration failed". Tell them to
+  // check their inbox instead.
+  if (!data.session) {
+    return {
+      success: true,
+      message:
+        "Akun berhasil dibuat. Kami sudah mengirim tautan konfirmasi ke email Anda — silakan buka email dan klik tautan tersebut untuk mengaktifkan akun.",
+    };
+  }
+
   revalidatePath("/", "layout");
-  redirect("/dashboard/lengkapi-profil");
+  redirect("/dashboard");
 }
 
 export async function signOut() {
@@ -81,6 +116,13 @@ export async function signOut() {
 }
 
 export async function requestPasswordReset(formData: FormData): Promise<ActionResult> {
+  // The UI hides the form while EMAIL_ENABLED is false, but a server action is
+  // a public endpoint — guard it here too rather than trusting the client.
+  // Reported as success so the endpoint still cannot be used to probe accounts.
+  if (!EMAIL_ENABLED) {
+    return { success: true };
+  }
+
   const parsed = resetPasswordSchema.safeParse({ email: formData.get("email") });
 
   if (!parsed.success) {

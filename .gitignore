@@ -42,3 +42,12 @@ next-env.d.ts
 
 # ...but the example is documentation and should be committed.
 !.env.example
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Supabase CLI local state (project linkage, cached versions)
+supabase/.temp/
+
+# Local dev screenshots
+.hero-preview.png

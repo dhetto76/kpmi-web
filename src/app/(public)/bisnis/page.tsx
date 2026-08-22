@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Building2, MapPin } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PageHero, Card, EmptyState, Input, Select } from "@/components/ui";
 import { JENIS_USAHA } from "@/lib/reference-data";
+import { BusinessIcon } from "@/lib/category-icons";
 
 export const metadata = {
   title: "Direktori Bisnis",
@@ -100,7 +101,7 @@ export default async function BusinessDirectoryPage({
                             className="object-cover"
                           />
                         ) : (
-                          <Building2 size={36} className="text-white/25" />
+                          <BusinessIcon industry={b.industry} size={36} className="text-white/25" />
                         )}
                       </div>
                       <div className="p-5">

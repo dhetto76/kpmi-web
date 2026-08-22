@@ -15,13 +15,19 @@ import { Button, Card, Field, Input } from "@/components/ui";
  */
 export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function onSubmit(formData: FormData) {
     setError(null);
+    setNotice(null);
     startTransition(async () => {
       const result = await signUp(formData);
-      if (result && "error" in result) setError(result.error);
+      if (!result) return;
+      if ("error" in result) setError(result.error);
+      // Account created, but the project requires email confirmation, so there
+      // is no session to redirect with. Show the check-your-inbox message.
+      else if ("message" in result) setNotice(result.message);
     });
   }
 
@@ -65,6 +71,20 @@ export default function SignUpPage() {
         </div>
       )}
 
+      {notice ? (
+        <div className="mt-6">
+          <div className="flex items-start gap-2.5 rounded-lg bg-green-50 p-3.5 text-sm text-green-800">
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+            <span>{notice}</span>
+          </div>
+          <p className="mt-5 text-center text-sm text-gray-600">
+            Sudah mengonfirmasi email?{" "}
+            <Link href="/masuk" className="font-bold text-maroon-600 hover:underline">
+              Masuk di sini
+            </Link>
+          </p>
+        </div>
+      ) : (
       <form action={onSubmit} className="mt-6 space-y-4">
         <Field label="Nama Lengkap" required>
           <Input name="full_name" required autoComplete="name" placeholder="Nama lengkap Anda" />
@@ -105,26 +125,31 @@ export default function SignUpPage() {
           {pending ? "Memproses…" : "Buat Akun"}
         </Button>
       </form>
+      )}
 
-      <ul className="mt-6 space-y-1.5 border-t border-gray-100 pt-5 text-xs text-gray-500">
-        {[
-          "Gratis, tanpa biaya pendaftaran",
-          "Data usaha bisa dilengkapi kapan saja",
-          "Keanggotaan diverifikasi oleh pengurus",
-        ].map((t) => (
-          <li key={t} className="flex items-center gap-2">
-            <CheckCircle2 size={14} className="shrink-0 text-green-600" />
-            {t}
-          </li>
-        ))}
-      </ul>
+      {!notice && (
+        <>
+          <ul className="mt-6 space-y-1.5 border-t border-gray-100 pt-5 text-xs text-gray-500">
+            {[
+              "Gratis, tanpa biaya pendaftaran",
+              "Data usaha bisa dilengkapi kapan saja",
+              "Keanggotaan diverifikasi oleh pengurus",
+            ].map((t) => (
+              <li key={t} className="flex items-center gap-2">
+                <CheckCircle2 size={14} className="shrink-0 text-green-600" />
+                {t}
+              </li>
+            ))}
+          </ul>
 
-      <p className="mt-6 text-center text-sm text-gray-600">
-        Sudah punya akun?{" "}
-        <Link href="/masuk" className="font-bold text-maroon-600 hover:underline">
-          Masuk di sini
-        </Link>
-      </p>
+          <p className="mt-6 text-center text-sm text-gray-600">
+            Sudah punya akun?{" "}
+            <Link href="/masuk" className="font-bold text-maroon-600 hover:underline">
+              Masuk di sini
+            </Link>
+          </p>
+        </>
+      )}
     </Card>
   );
 }

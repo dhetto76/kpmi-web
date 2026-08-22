@@ -3,7 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
-import { createBusiness, updateBusiness, deleteBusiness } from "../actions";
+import {
+  createBusiness,
+  updateBusiness,
+  deleteBusiness,
+  type ActionResult,
+} from "../actions";
 import { Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { ImageUpload } from "@/components/ui/image-upload";
 import {
@@ -60,12 +65,33 @@ function OptionSelect({
   );
 }
 
+type SaveAction = (id: string, formData: FormData) => Promise<ActionResult>;
+type RemoveAction = (id: string) => Promise<ActionResult>;
+
+/**
+ * The business form, shared by the member dashboard and the admin panel.
+ *
+ * Admins edit the same fields members do, so the form is identical — only the
+ * server action and the page to return to differ. Passing those in keeps one
+ * form to maintain instead of two that drift apart.
+ */
 export function BusinessForm({
   business,
   userId,
+  updateAction = updateBusiness,
+  deleteAction = deleteBusiness,
+  backHref = "/dashboard/bisnis",
 }: {
   business?: Business;
+  /**
+   * Whose folder uploaded images land in. Storage policies require the first
+   * path segment to be the *uploader's* id, so an admin passes their own —
+   * the files are publicly readable either way.
+   */
   userId: string;
+  updateAction?: SaveAction;
+  deleteAction?: RemoveAction;
+  backHref?: string;
 }) {
   const isEdit = !!business;
   const router = useRouter();
@@ -79,7 +105,7 @@ export function BusinessForm({
     setMessage(null);
     startTransition(async () => {
       const result = isEdit
-        ? await updateBusiness(business.id, formData)
+        ? await updateAction(business.id, formData)
         : await createBusiness(formData);
 
       // createBusiness redirects on success, so only errors return here.
@@ -93,11 +119,11 @@ export function BusinessForm({
 
   function onDelete() {
     startTransition(async () => {
-      const result = await deleteBusiness(business!.id);
+      const result = await deleteAction(business!.id);
       if ("error" in result) {
         setMessage({ type: "error", text: result.error });
       } else {
-        router.push("/dashboard/bisnis");
+        router.push(backHref);
       }
     });
   }

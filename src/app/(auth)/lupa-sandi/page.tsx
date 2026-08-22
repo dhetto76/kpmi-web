@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CheckCircle2, AlertCircle } from "lucide-react";
+import { CheckCircle2, AlertCircle, Mail, Phone } from "lucide-react";
 import { requestPasswordReset } from "../actions";
 import { Button, Card, Field, Input } from "@/components/ui";
+import { EMAIL_ENABLED, ORG } from "@/content/site";
 
 export default function ForgotPasswordPage() {
   const [state, setState] = useState<"idle" | "sent" | "error">("idle");
@@ -15,6 +16,46 @@ export default function ForgotPasswordPage() {
       const result = await requestPasswordReset(formData);
       setState("error" in result ? "error" : "sent");
     });
+  }
+
+  // No SMTP provider yet, so a reset email would never arrive. Point people at
+  // the sekretariat rather than showing a form that silently does nothing.
+  if (!EMAIL_ENABLED) {
+    return (
+      <Card className="p-8">
+        <h1 className="font-display text-2xl font-extrabold text-maroon-900">
+          Lupa Kata Sandi
+        </h1>
+        <p className="mt-1 text-sm text-gray-600">
+          Pengaturan ulang kata sandi lewat email belum tersedia. Silakan hubungi
+          sekretariat dan kami akan membantu memulihkan akun Anda.
+        </p>
+        <div className="gold-rule mt-5 w-16" />
+
+        <div className="mt-6 space-y-3">
+          <a
+            href={`mailto:${ORG.email}`}
+            className="flex items-center gap-3 rounded-lg border border-gray-200 p-3.5 text-sm font-medium text-gray-700 transition-colors hover:border-maroon-200 hover:bg-maroon-50"
+          >
+            <Mail size={18} className="shrink-0 text-maroon-600" />
+            {ORG.email}
+          </a>
+          <a
+            href={`tel:${ORG.phone.replace(/\s/g, "")}`}
+            className="flex items-center gap-3 rounded-lg border border-gray-200 p-3.5 text-sm font-medium text-gray-700 transition-colors hover:border-maroon-200 hover:bg-maroon-50"
+          >
+            <Phone size={18} className="shrink-0 text-maroon-600" />
+            {ORG.phone}
+          </a>
+        </div>
+
+        <p className="mt-6 text-center text-sm text-gray-600">
+          <Link href="/masuk" className="font-bold text-maroon-600 hover:underline">
+            Kembali ke halaman masuk
+          </Link>
+        </p>
+      </Card>
+    );
   }
 
   if (state === "sent") {

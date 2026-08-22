@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus, Package } from "lucide-react";
+import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card, ButtonLink, EmptyState, Badge } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
+import { ProductIcon } from "@/lib/category-icons";
 
 export const metadata = { title: "Produk & Jasa" };
 
@@ -83,7 +84,7 @@ export default async function ProductListPage() {
                 className="flex items-center gap-4 p-4 transition-colors hover:bg-gray-50"
               >
                 <div className="bg-maroon-deep grid h-11 w-11 shrink-0 place-items-center rounded-xl text-gold-300">
-                  <Package size={19} />
+                  <ProductIcon category={p.category} size={19} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-semibold text-gray-900">{p.name}</div>

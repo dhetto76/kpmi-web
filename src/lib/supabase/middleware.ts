@@ -48,7 +48,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Admin area additionally requires the admin role.
+  // Admin area additionally requires an administrative role. Both super_admin
+  // and admin_korwil may enter; RLS scopes what each actually sees.
   if (path.startsWith("/admin") && user) {
     const { data: profile } = await supabase
       .from("profiles")
@@ -56,7 +57,7 @@ export async function updateSession(request: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (profile?.role !== "super_admin" && profile?.role !== "admin_korwil") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);

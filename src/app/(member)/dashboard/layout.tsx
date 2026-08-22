@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardNav } from "@/components/layout/dashboard-nav";
+import { isAdminRole } from "@/lib/auth";
 import { StatusBadge } from "@/components/ui";
 import { ORG } from "@/content/site";
 
@@ -49,7 +50,7 @@ export default async function DashboardLayout({
 
       <div className="shell grid gap-8 py-8 lg:grid-cols-[15rem_1fr]">
         <aside className="lg:sticky lg:top-8 lg:self-start">
-          <DashboardNav isAdmin={profile?.role === "admin"} />
+          <DashboardNav isAdmin={isAdminRole(profile?.role)} />
         </aside>
         <div className="min-w-0">{children}</div>
       </div>

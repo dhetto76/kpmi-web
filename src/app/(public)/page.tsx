@@ -4,11 +4,12 @@ import {
   ArrowRight, Users, BookOpen, Store, Search, ShieldCheck,
   TrendingUp, Building2, Package, Newspaper, type LucideIcon,
 } from "lucide-react";
-import { ORG, MANFAAT, VISI } from "@/content/site";
+import { MANFAAT, VISI } from "@/content/site";
 import { getAllNews } from "@/lib/news";
 import { formatDate } from "@/lib/utils";
 import { KORWIL } from "@/lib/reference-data";
 import { ButtonLink, SectionTitle, Card } from "@/components/ui";
+import { HeroCarousel } from "@/components/home/hero-carousel";
 import { createClient } from "@/lib/supabase/server";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -51,56 +52,23 @@ export default async function HomePage() {
   return (
     <>
       {/* ------------------------------------------------------------ Hero */}
-      <section className="bg-maroon-deep pattern-geo relative flex min-h-[88vh] items-center overflow-hidden pt-28">
-        <div className="pointer-events-none absolute -right-40 top-1/4 h-[30rem] w-[30rem] rounded-full bg-gold-500/15 blur-3xl" />
-        <div className="pointer-events-none absolute -left-40 bottom-0 h-96 w-96 rounded-full bg-maroon-400/25 blur-3xl" />
-
-        <div className="shell relative grid items-center gap-14 py-20 lg:grid-cols-2">
-          <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-gold-500/40 bg-white/5 px-4 py-1.5 text-xs font-semibold text-gold-300 backdrop-blur">
-              <span className="h-1.5 w-1.5 rounded-full bg-gold-300" />
-              Sejak {ORG.founded} · {ORG.full}
-            </div>
-
-            <h1 className="font-display text-4xl font-extrabold leading-[1.1] tracking-tight text-balance text-white sm:text-5xl lg:text-6xl">
-              Membangun Bisnis yang{" "}
-              <span className="text-gold-grad">Halal &amp; Berkah</span>
-            </h1>
-
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/75">
-              {ORG.tagline}
-            </p>
-
-            <div className="mt-9 flex flex-wrap gap-4">
-              <ButtonLink href="/daftar" variant="gold" size="lg">
-                Gabung Sekarang <ArrowRight size={18} />
-              </ButtonLink>
-              <Link
-                href="/bisnis"
-                className="inline-flex items-center gap-2 rounded-full border-2 border-white/25 px-8 py-3.5 font-bold text-white transition-colors hover:bg-white/10"
-              >
-                Jelajahi Direktori
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {tiles.map((s) => (
-              <div
-                key={s.label}
-                className="rounded-2xl border border-white/10 bg-white/[.07] p-6 text-center backdrop-blur-sm"
-              >
-                <div className="font-display text-3xl font-extrabold tabular-nums text-gold-300 sm:text-4xl">
-                  {s.value}
-                </div>
-                <div className="mt-1 text-xs font-medium uppercase tracking-wider text-white/70">
-                  {s.label}
-                </div>
+      <HeroCarousel>
+        <div className="mx-auto mt-16 grid max-w-4xl grid-cols-2 gap-4 lg:grid-cols-4">
+          {tiles.map((s) => (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-white/10 bg-white/[.07] p-6 text-center backdrop-blur-sm"
+            >
+              <div className="font-display text-3xl font-extrabold tabular-nums text-gold-300 sm:text-4xl">
+                {s.value}
               </div>
-            ))}
-          </div>
+              <div className="mt-1 text-xs font-medium uppercase tracking-wider text-white/70">
+                {s.label}
+              </div>
+            </div>
+          ))}
         </div>
-      </section>
+      </HeroCarousel>
 
       {/* -------------------------------------------------------- Benefits */}
       <section className="bg-white py-24">
