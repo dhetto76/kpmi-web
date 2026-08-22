@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Search, Trash2, X } from "lucide-react";
+import { Check, Search, Trash2, X } from "lucide-react";
 import { Card, EmptyState, StatusBadge } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { ApprovalStatus, UserRole } from "@/types/database";
-import { deleteMembers } from "../actions";
+import { approveMembers, deleteMembers } from "../actions";
 import { RoleControl } from "../role-control";
 import { StatusControl } from "../status-control";
 
@@ -58,6 +58,7 @@ export function MemberTable({ members, isSuperAdmin, currentUserId }: {
 
   function toggle(id: string) {
     setConfirming(false);
+    setError(null);
     setMessage(null);
     setSelected((current) => {
       const next = new Set(current);
@@ -69,6 +70,7 @@ export function MemberTable({ members, isSuperAdmin, currentUserId }: {
 
   function toggleAllVisible() {
     setConfirming(false);
+    setError(null);
     setMessage(null);
     setSelected((current) => {
       const next = new Set(current);
@@ -90,6 +92,21 @@ export function MemberTable({ members, isSuperAdmin, currentUserId }: {
       setSelected(new Set());
       setConfirming(false);
       setMessage(`${result.deletedCount} anggota berhasil dihapus.`);
+    });
+  }
+
+  function approveSelected() {
+    setConfirming(false);
+    setError(null);
+    setMessage(null);
+    startTransition(async () => {
+      const result = await approveMembers([...selected]);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      setSelected(new Set());
+      setMessage(`${result.updatedCount} anggota berhasil disetujui.`);
     });
   }
 
@@ -125,9 +142,14 @@ export function MemberTable({ members, isSuperAdmin, currentUserId }: {
                 <button type="button" onClick={() => setConfirming(false)} disabled={pending} className="rounded-full px-3 py-2 text-sm font-bold text-gray-600 hover:bg-gray-100">Batal</button>
               </>
             ) : (
-              <button type="button" onClick={() => setConfirming(true)} className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100">
-                <Trash2 size={15} /> Hapus pilihan
-              </button>
+              <>
+                <button type="button" onClick={approveSelected} disabled={pending} className="inline-flex items-center gap-1.5 rounded-full bg-green-600 px-4 py-2 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-60">
+                  <Check size={15} /> {pending ? "Memproses…" : "Setujui pilihan"}
+                </button>
+                <button type="button" onClick={() => setConfirming(true)} disabled={pending} className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100 disabled:opacity-60">
+                  <Trash2 size={15} /> Hapus pilihan
+                </button>
+              </>
             )}
           </div>
         )}

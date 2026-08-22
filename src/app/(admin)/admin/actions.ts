@@ -60,6 +60,48 @@ export async function setMemberStatus(
   return { success: true };
 }
 
+export async function approveMembers(
+  ids: string[],
+): Promise<{ error: string } | { success: true; updatedCount: number }> {
+  const uniqueIds = [...new Set(ids)];
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+  if (uniqueIds.length === 0) return { error: "Pilih setidaknya satu anggota." };
+  if (uniqueIds.length > 100) return { error: "Maksimal 100 anggota sekali proses." };
+  if (uniqueIds.some((id) => !uuid.test(id))) return { error: "ID anggota tidak valid." };
+
+  const { supabase, ctx } = await requireAdmin();
+  let targetQuery = supabase
+    .from("profiles")
+    .select("id, korwil")
+    .in("id", uniqueIds)
+    .eq("role", "member");
+
+  if (!ctx.isSuperAdmin) {
+    if (!ctx.managedKorwil) return { error: OUT_OF_SCOPE };
+    targetQuery = targetQuery.eq("korwil", ctx.managedKorwil);
+  }
+
+  const { data: targets, error: targetError } = await targetQuery;
+  if (targetError || targets?.length !== uniqueIds.length) {
+    return { error: "Satu atau lebih anggota berada di luar kewenangan Anda." };
+  }
+
+  const { data: updated, error } = await supabase
+    .from("profiles")
+    .update({ status: "approved" })
+    .in("id", uniqueIds)
+    .eq("role", "member")
+    .select("id");
+
+  if (error || updated?.length !== uniqueIds.length) {
+    return { error: "Gagal menyetujui anggota yang dipilih." };
+  }
+
+  revalidatePath("/admin/anggota");
+  return { success: true, updatedCount: updated.length };
+}
+
 export async function deleteMembers(
   ids: string[],
 ): Promise<{ error: string } | { success: true; deletedCount: number }> {
