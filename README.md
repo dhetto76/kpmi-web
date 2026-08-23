@@ -13,7 +13,7 @@ catalog of products. Administrators verify members and businesses.
 
 | Concern    | Choice                    |
 | ---------- | ------------------------- |
-| Framework  | Next.js 16 (App Router)   |
+| Framework  | React Router 8 (framework) |
 | Language   | TypeScript (strict)       |
 | Styling    | Tailwind CSS v4           |
 | Database   | Supabase (PostgreSQL)     |
@@ -21,10 +21,10 @@ catalog of products. Administrators verify members and businesses.
 | Files      | Supabase Storage          |
 | Icons      | lucide-react              |
 | Validation | Zod                       |
-| Hosting    | Vercel                    |
+| Hosting    | Node server (`react-router-serve`) |
 
-No client state library, no ORM, no API layer. Server Components read data
-directly; Server Actions write it.
+No client state library, no ORM, no API layer. Route loaders read data
+directly; route actions write it.
 
 ---
 
@@ -65,24 +65,27 @@ npx supabase db push
 ### 3. Configure environment
 
 ```bash
-cp .env.example .env.local
+cp .env.example .env
 ```
 
 Fill in from **Project Settings → API**:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
 
-Only the anon key is needed. There is no service-role key in this app —
-every query runs as the signed-in user and is filtered by RLS.
+The service-role key is used only by the server-side administrator password
+action. Keep it in `.env` (or your hosting provider's encrypted server
+environment), never expose it with a `VITE_` prefix. All regular data
+queries continue to run as the signed-in user and are filtered by RLS.
 
 ### 4. Run
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000
+npm run dev        # http://localhost:5173
 ```
 
 ### 5. Make yourself a Super Admin
@@ -109,40 +112,47 @@ approve members, businesses, and products only within it.
 content/news/               News + event Markdown files
 public/images/news/         Their images
 
-src/
-├── app/
-│   ├── (public)/           Marketing site + public browse
-│   │   ├── page.tsx              Home
-│   │   ├── profil/               About, vision, structure
-│   │   ├── bisnis/               Directory + [slug] detail
-│   │   ├── produk/               Product catalog
-│   │   ├── berita/               News index + [slug] detail
-│   │   └── kontak/
-│   ├── (auth)/             Sign in, register, password reset
-│   ├── (member)/dashboard/ Member area — profile, businesses, products
-│   ├── (admin)/admin/      Admin — verification queues
-│   └── auth/callback/      Email confirmation + reset handler
+app/
+├── root.tsx                Document shell, global meta, ErrorBoundary
+├── routes.ts               The route tree, declared explicitly
+├── globals.css             Tailwind theme + design system
+├── routes/
+│   └── public/             Marketing site + public browse
+│       ├── layout.tsx            Header, footer, announcement banner
+│       ├── home.tsx              Home
+│       ├── profil.*.tsx          About, vision, structure
+│       ├── bisnis._index.tsx     Directory
+│       ├── bisnis.$slug.tsx      Business detail
+│       ├── produk._index.tsx     Product catalog
+│       ├── berita._index.tsx     News index
+│       ├── berita.$slug.tsx      News detail
+│       └── kontak.tsx
 ├── components/
 │   ├── ui/                 Button, Card, Field, Input, Badge…
-│   │   └── image-upload.tsx  Storage-backed upload widgets
-│   └── layout/             Header, footer, dashboard nav
+│   │   └── image.tsx       next/image stand-in (plain <img>)
+│   └── layout/             Header, footer
 ├── lib/
-│   ├── supabase/           client / server / middleware helpers
+│   ├── supabase/           env / browser client / server client / admin
+│   ├── auth.server.ts      Route guards + role helpers
+│   ├── settings.server.ts  Site settings + editable reference lists
+│   ├── news.server.ts      Reads content/news/*.md
 │   ├── reference-data.ts   Korwil, industries, categories (see below)
-│   ├── news.ts             Reads content/news/*.md
-│   ├── validations.ts      Zod schemas, shared client + server
 │   └── utils.ts            cn, slugify, formatPrice, formatDate
 ├── content/site.ts         Org details, navigation, static copy
-├── types/database.ts       Database types
-└── proxy.ts                Session refresh + route guards
+└── types/database.ts       Database types
 
+.migration-pending/         Files still on Next.js APIs — see its README
 supabase/
 ├── migrations/             Version-controlled schema
 └── seed.sql                Category seed data
 ```
 
-Route groups mirror the authorization model, so the security boundary is
-visible in the directory tree.
+`routes.ts` is the authorization map: what Next.js expressed as `(public)` /
+`(member)` / `(admin)` route-group folders is now nested `layout()` calls, so
+the security boundary stays visible in one file instead of the directory tree.
+
+A `.server.ts` suffix guarantees a module never reaches the browser — the
+replacement for Next.js's `import "server-only"`.
 
 ---
 
@@ -152,8 +162,8 @@ Three layers, in order of authority:
 
 1. **RLS policies** (`supabase/migrations/…_rls_policies.sql`) — the real
    boundary. Enforced by PostgreSQL on every query, regardless of caller.
-2. **Server Actions** re-check ownership to return clear error messages.
-3. **`src/proxy.ts`** redirects unauthenticated visitors for a good UX.
+2. **Route actions** re-check ownership to return clear error messages.
+3. **`app/lib/auth.server.ts`** guards redirect unauthenticated visitors for a good UX.
 
 Layers 2 and 3 are convenience. **Layer 1 is the security.** Never add a
 feature that depends only on 2 or 3.
@@ -181,7 +191,7 @@ The rules:
 
 ## Reference data
 
-`src/lib/reference-data.ts` holds option lists extracted **verbatim** from the
+`app/lib/reference-data.ts` holds option lists extracted **verbatim** from the
 live WordPress registration form: 45 korwil regions (including Doha, Jeddah,
 Kairo), 13 industries, 13 product categories, turnover and headcount bands, and
 11 KES cohorts.
@@ -193,25 +203,26 @@ records; changing a label orphans data.
 
 ## Common tasks
 
-**Add a public page** — create `src/app/(public)/<path>/page.tsx`. It inherits
-the header and footer automatically. Add it to `NAV` in `src/content/site.ts`.
+**Add a public page** — create `app/routes/public/<name>.tsx`, then register it
+under the public `layout()` in `app/routes.ts`. It inherits the header and
+footer automatically. Add it to `NAV` in `app/content/site.ts`.
 
 **Add a field to businesses** — add a column in a new migration under
-`supabase/migrations/`, add it to `Business` in `src/types/database.ts`, to
-`businessSchema` in `src/lib/validations.ts`, then to the form in
-`src/app/(member)/dashboard/bisnis/business-form.tsx`.
+`supabase/migrations/`, add it to `Business` in `app/types/database.ts`, to
+`businessSchema` in `app/lib/validations.ts`, then to the business form
+(currently in `.migration-pending/`, pending the member-area migration).
 
 **Add a news item or event** — put the image in `public/images/news/`, create a
 `.md` file in `content/news/`, commit, push. See `content/news/README.md` for
 the frontmatter format. Set `draft: true` to keep it visible in development but
 hidden in production.
 
-**Change site copy** — `src/content/site.ts`. No component changes needed.
+**Change site copy** — `app/content/site.ts`. No component changes needed.
 
 **Regenerate database types** once the project is live:
 
 ```bash
-npx supabase gen types typescript --project-id <id> > src/types/database.ts
+npx supabase gen types typescript --project-id <id> > app/types/database.ts
 ```
 
 ---
@@ -222,21 +233,79 @@ npx supabase gen types typescript --project-id <id> > src/types/database.ts
 npm run dev      # dev server
 npm run build    # production build
 npm run start    # serve the build
+npm run typecheck # react-router typegen + tsc
 npm run lint     # eslint
-npx tsc --noEmit # typecheck
 ```
 
 ---
 
 ## Deploying
 
-Push to GitHub, import the repo on Vercel, and set the two
-`NEXT_PUBLIC_SUPABASE_*` variables. No other configuration is required.
+`npm run build` produces `build/client` (static assets) and `build/server`
+(the SSR handler). `npm run start` serves both via `react-router-serve`.
+
+This needs a host that runs a Node process — Fly, Railway, Render, or a
+container. Vercel can host React Router too, but through its own adapter rather
+than the Next.js build that used to be here.
+
+Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and
+`SUPABASE_SERVICE_ROLE_KEY` in the host's environment. The `VITE_` pair is
+inlined at **build** time, so they must be present when `npm run build` runs,
+not only at boot.
 
 In Supabase → Authentication → URL Configuration, add your production domain
 to the redirect allow-list so email confirmation and password reset links work.
 
 ---
+
+---
+
+## Migration status — Next.js → React Router
+
+This branch replaces Next.js with React Router 8 in framework mode. The public
+site is migrated and verified; the authenticated areas are not yet.
+
+| Section | Routes | State |
+| --- | --- | --- |
+| Public site | 9 | **Migrated** — builds, typechecks, all routes render |
+| Auth (`/masuk`, `/daftar`, `/lupa-sandi`, callback) | 4 | Not started |
+| Member dashboard | 9 | Not started |
+| Admin panel | 14 | Not started |
+
+Recover any unmigrated route from git to port it:
+
+```bash
+git show origin/main:"src/app/(member)/dashboard/page.tsx"
+git show feat/rbac-role-privileges:"src/app/(admin)/admin/page.tsx"
+```
+
+### What changed, and why
+
+| Next.js | React Router | Note |
+| --- | --- | --- |
+| `page.tsx` async component | `loader` + default export | Data loading moved out of the component |
+| Server Actions (`"use server"`) | route `action` + `<Form>` | Progressive enhancement by default |
+| `src/proxy.ts` middleware | `app/lib/auth.server.ts` guards | **No middleware** — every protected loader must guard itself |
+| `revalidatePath` | automatic after an action | Loaders re-run on the same page |
+| `next/link` | `<Link to>` | `href` → `to` |
+| `next/image` | `app/components/ui/image.tsx` | Plain `<img>`; no optimizer (see below) |
+| `next/font/google` | `<link>` in `root.tsx` | Font is no longer self-hosted |
+| `metadata` / `generateMetadata` | `meta` export | Reads `loaderData`, so detail pages query once, not twice |
+| `notFound()` | `throw new Response(…, { status: 404 })` | Caught by the nearest `ErrorBoundary` |
+| `import "server-only"` | `.server.ts` suffix | Enforced by the compiler |
+| `NEXT_PUBLIC_*` | `VITE_*` | Both names still read, so an old `.env.local` keeps working |
+
+### Known gaps
+
+- **No image optimization.** `next/image` resized and re-encoded on the fly;
+  the replacement is a plain `<img>`. Supabase Storage can transform on request
+  (`?width=…`) where it matters — worth doing before launch if uploads are large.
+- **Session refresh is per-route.** Middleware refreshed the token once per
+  request; now each loader does it, and each must return its `headers` or the
+  rotated refresh token is dropped. `createClient(request)` documents this.
+- **`generateStaticParams` is gone.** News articles were pre-rendered at build
+  time. They are server-rendered per request now; add `prerender` to
+  `react-router.config.ts` to restore that if build-time output is wanted.
 
 ## Deliberately not built
 

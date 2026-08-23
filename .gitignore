@@ -13,9 +13,8 @@
 # testing
 /coverage
 
-# next.js
-/.next/
-/out/
+# react-router
+/.react-router/
 
 # production
 /build
@@ -33,12 +32,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# vercel
+# vercel (kept: harmless if unused)
 .vercel
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
 
 # ...but the example is documentation and should be committed.
 !.env.example
