@@ -71,8 +71,13 @@ export default [
       route("produk", "routes/admin/produk._index.tsx"),
       route("produk/:id", "routes/admin/produk.$id.tsx"),
 
-      // Still to migrate: korwil, kategori, industri (the three reference
-      // lists), pengguna, and pengaturan. Their nav links 404 until then.
+      // The three reference lists are the same page over a different `kind`.
+      route("korwil", "routes/admin/korwil.tsx"),
+      route("kategori", "routes/admin/kategori.tsx"),
+      route("industri", "routes/admin/industri.tsx"),
+
+      route("pengguna", "routes/admin/pengguna.tsx"),
+      route("pengaturan", "routes/admin/pengaturan.tsx"),
     ]),
   ]),
 ] satisfies RouteConfig;

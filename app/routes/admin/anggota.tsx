@@ -7,7 +7,7 @@ import { adminSetPasswordSchema } from "@/lib/validations";
 import { KORWIL } from "@/lib/reference-data";
 import { EmptyState, Select } from "@/components/ui";
 import { MemberTable, type MemberRow } from "@/components/admin/member-table";
-import { OUT_OF_SCOPE, UUID_RE, isRole, isStatus } from "@/lib/admin.server";
+import { OUT_OF_SCOPE, UUID_RE, grantRole, isStatus } from "@/lib/admin.server";
 
 export const meta: Route.MetaFunction = () => [{ title: "Anggota | Panel Admin" }];
 
@@ -176,38 +176,17 @@ export async function action({ request }: Route.ActionArgs) {
 
   /* -------------------------------------------------------- role grant */
   if (intent === "set-member-role") {
-    const id = String(formData.get("id") ?? "");
-    const role = formData.get("role");
-    const managedKorwil = String(formData.get("managed_korwil") ?? "");
-
-    if (!UUID_RE.test(id)) return fail("ID anggota tidak valid.");
-    if (!isRole(role)) return fail("Peran tidak valid.");
-
-    // Super admin only — a korwil admin cannot mint other admins, so a single
-    // compromised regional account cannot multiply itself.
-    if (!ctx.isSuperAdmin) return fail("Hanya Super Admin yang dapat mengubah peran.", 403);
-
-    // Removing your own super admin rights could leave the platform with no
-    // administrator at all, and you could not undo it.
-    if (id === ctx.userId && role !== "super_admin") {
-      return fail("Anda tidak dapat menurunkan peran Anda sendiri.", 403);
-    }
-
-    let region: string | null = null;
-    if (role === "admin_korwil") {
-      if (!managedKorwil) return fail("Pilih wilayah korwil untuk Admin Korwil.");
-      if (!(KORWIL as readonly string[]).includes(managedKorwil)) {
-        return fail("Wilayah korwil tidak valid.");
-      }
-      region = managedKorwil;
-    }
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role, managed_korwil: region })
-      .eq("id", id);
-
-    if (error) return fail("Gagal memperbarui peran.", 500);
+    const denied = await grantRole(
+      supabase,
+      ctx,
+      {
+        id: String(formData.get("id") ?? ""),
+        role: formData.get("role"),
+        managedKorwil: String(formData.get("managed_korwil") ?? ""),
+      },
+      KORWIL,
+    );
+    if (denied) return fail(denied.error, denied.status);
     return data({ ok: true }, { headers });
   }
 

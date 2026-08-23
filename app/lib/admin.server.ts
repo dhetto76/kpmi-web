@@ -115,3 +115,52 @@ export async function uniqueBusinessSlug(
   }
   return `${base}-${Date.now().toString(36)}`;
 }
+
+/**
+ * Assigns a role. Super admin only — a korwil admin cannot mint other admins,
+ * so a single compromised regional account cannot multiply itself.
+ *
+ * `managedKorwil` is required for admin_korwil and must be null otherwise; the
+ * profiles_managed_korwil_check constraint enforces the same pairing.
+ *
+ * Shared by /admin/anggota and /admin/pengguna, which both grant roles. A
+ * duplicated privilege check is one that can drift out of agreement with
+ * itself, so there is exactly one copy.
+ */
+export async function grantRole(
+  supabase: SupabaseClient,
+  ctx: AdminContext,
+  input: { id: string; role: unknown; managedKorwil: string },
+  korwilOptions: readonly string[],
+): Promise<{ error: string; status: number } | null> {
+  if (!UUID_RE.test(input.id)) return { error: "ID anggota tidak valid.", status: 400 };
+  if (!isRole(input.role)) return { error: "Peran tidak valid.", status: 400 };
+  if (!ctx.isSuperAdmin) {
+    return { error: "Hanya Super Admin yang dapat mengubah peran.", status: 403 };
+  }
+
+  // Removing your own super admin rights could leave the platform with no
+  // administrator at all, and you could not undo it.
+  if (input.id === ctx.userId && input.role !== "super_admin") {
+    return { error: "Anda tidak dapat menurunkan peran Anda sendiri.", status: 403 };
+  }
+
+  let region: string | null = null;
+  if (input.role === "admin_korwil") {
+    if (!input.managedKorwil) {
+      return { error: "Pilih wilayah korwil untuk Admin Korwil.", status: 400 };
+    }
+    if (!korwilOptions.includes(input.managedKorwil)) {
+      return { error: "Wilayah korwil tidak valid.", status: 400 };
+    }
+    region = input.managedKorwil;
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ role: input.role, managed_korwil: region })
+    .eq("id", input.id);
+
+  if (error) return { error: "Gagal memperbarui peran.", status: 500 };
+  return null;
+}

@@ -128,16 +128,21 @@ app/
 │   │   ├── berita.$slug.tsx      News detail
 │   │   └── kontak.tsx
 │   ├── auth/               Sign in, register, reset, sign out, callback
-│   └── member/             Dashboard — profile, businesses, products
+│   ├── member/             Dashboard — profile, businesses, products
+│   └── admin/              Panel — queues, reference lists, settings
+│       └── reference-route.server.ts  Loader/action factories, one per kind
 ├── components/
 │   ├── ui/                 Button, Card, Field, Input, Badge…
 │   │   ├── image.tsx       next/image stand-in (plain <img>)
 │   │   └── image-upload.tsx  Storage-backed upload widgets
 │   ├── member/             Business and product forms
+│   ├── admin/              Tables, row controls, reference editor
 │   └── layout/             Header, footer, dashboard nav
 ├── lib/
 │   ├── supabase/           env / browser client / server client / admin
 │   ├── auth.server.ts      Route guards + role helpers
+│   ├── admin.server.ts     Korwil scoping, role granting, id validation
+│   ├── reference.server.ts Usage counts, rename backfill, korwil options
 │   ├── member.server.ts    Slug, ownership, and form-value helpers
 │   ├── redirect.ts         Validates ?next= against open redirects
 │   ├── settings.server.ts  Site settings + editable reference lists
@@ -158,7 +163,10 @@ supabase/
 the security boundary stays visible in one file instead of the directory tree.
 
 A `.server.ts` suffix guarantees a module never reaches the browser — the
-replacement for Next.js's `import "server-only"`.
+replacement for Next.js's `import "server-only"`. The check runs at build time,
+not typecheck time: `tsc` will happily accept a route component importing
+server code, and only `npm run build` fails with "Server-only module referenced
+by client". Run the build before trusting a green typecheck.
 
 ---
 
@@ -269,16 +277,15 @@ to the redirect allow-list so email confirmation and password reset links work.
 ## Migration status — Next.js → React Router
 
 This branch replaces Next.js with React Router 8 in framework mode. The public
-site, authentication, and the member dashboard are migrated and verified. The
-admin panel is half done: the verification queues are migrated, the settings
-pages are not.
+site, authentication, member dashboard, and admin panel are all migrated. No
+file in `app/` imports a Next.js API any more.
 
 | Section | Routes | State |
 | --- | --- | --- |
 | Public site | 9 | **Migrated** — verified against live data |
 | Auth | 5 | **Migrated** — sign-in/out and session persistence verified |
 | Member dashboard | 9 | **Migrated** — CRUD and ownership checks verified |
-| Admin panel | 6 of 14 | **Partly migrated** — dashboard, anggota, bisnis, produk. Guards verified |
+| Admin panel | 14 | **Migrated** — guards and escalation attempts verified |
 
 Recover any unmigrated route from git to port it:
 
@@ -332,10 +339,6 @@ git show feat/rbac-role-privileges:"src/app/(admin)/admin/page.tsx"
 
 ### Admin notes
 
-- **Still to migrate:** `korwil`, `kategori`, `industri` (the three reference
-  lists), `pengguna`, and `pengaturan`. Their sidebar links 404 until then.
-  Everything else — the dashboard and the anggota / bisnis / produk queues — is
-  ported.
 - **One action, several intents.** Next.js exported a Server Action per
   operation. A route has a single action, so the operation travels as an
   `intent` field and every branch re-checks the caller's role, because an
@@ -349,7 +352,17 @@ git show feat/rbac-role-privileges:"src/app/(admin)/admin/page.tsx"
   themselves, so the two panels cannot drift apart.
 - **Member search is a GET form, not a debounced `router.replace`.** Search now
   costs one submit instead of a request per keystroke, and the result is a
-  shareable URL that works without JavaScript.
+  shareable URL that works without JavaScript. The reference and user tables
+  keep their client-side filter — those lists load whole, so filtering them
+  needs no round trip at all.
+- **The three reference lists share loader/action factories.** Next.js
+  parameterised them through a `<ReferencePage kind=…>` component each page
+  rendered. A route module cannot be parameterised that way — `loader` and
+  `action` are module-level exports — so `reference-route.server.ts` exports
+  factories and each route wires its own kind in.
+- **`grantRole` has exactly one implementation** (`app/lib/admin.server.ts`),
+  shared by `/admin/anggota` and `/admin/pengguna`. A duplicated privilege
+  check is one that can drift out of agreement with itself.
 
 ### Verification limits
 
@@ -359,11 +372,15 @@ trigger refuses it over the REST API, which is the protection working as
 designed — so a throwaway korwil admin could not be created from here.
 
 What *was* verified: anonymous and plain-member callers are blocked from every
-migrated admin route, on both GET and POST, and a member attempting to approve
-themselves or grant themselves `super_admin` was rejected with no database
-change. The korwil scoping code is ported line-for-line from the original and
-RLS enforces the same rule underneath, but exercise it with a real Admin Korwil
-account before relying on it.
+admin route, on both GET and POST. A member attempting to approve themselves,
+grant themselves `super_admin`, add a korwil, or change site settings was
+rejected each time with no database change. The korwil scoping code is ported
+line-for-line from the original and RLS enforces the same rule underneath, but
+exercise it with a real Admin Korwil account before relying on it.
+
+Worth checking while you are there: one existing admin has `korwil` =
+"Yogyakarta" but `managed_korwil` = "Bandung" — valid per the constraint, but
+it means they administer a region they are not in. Unrelated to the migration.
 
 ### Known gaps
 
