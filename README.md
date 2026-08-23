@@ -256,19 +256,38 @@ npm run lint     # eslint
 ## Deploying
 
 `npm run build` produces `build/client` (static assets) and `build/server`
-(the SSR handler). `npm run start` serves both via `react-router-serve`.
+(the SSR handler). `npm run start` serves both via `react-router-serve`, which
+binds the port in `PORT` — so any Node host works.
 
-This needs a host that runs a Node process — Fly, Railway, Render, or a
-container. Vercel can host React Router too, but through its own adapter rather
-than the Next.js build that used to be here.
+Configured for **Railway** in `railway.json`: Nixpacks builds with
+`npm run build` and runs `npm run start`, health-checking `/`. Node is pinned to
+22.22.0 (`.nvmrc` and the `engines` field) because React Router 8 requires
+`>=22.22.0` and a bare `22` can resolve below that.
 
-Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and
-`SUPABASE_SERVICE_ROLE_KEY` in the host's environment. The `VITE_` pair is
-inlined at **build** time, so they must be present when `npm run build` runs,
-not only at boot.
+### First deploy
 
-In Supabase → Authentication → URL Configuration, add your production domain
-to the redirect allow-list so email confirmation and password reset links work.
+1. Create a project on Railway and point it at this repository and branch.
+2. **Set the environment variables before the first build** (Variables tab):
+
+   ```
+   VITE_SUPABASE_URL=https://xxxx.supabase.co
+   VITE_SUPABASE_ANON_KEY=eyJ...
+   SUPABASE_SERVICE_ROLE_KEY=eyJ...
+   ```
+
+   The `VITE_` pair is inlined into the browser bundle at **build** time, not
+   read at boot. A build that runs without them produces a bundle that cannot
+   reach Supabase, and adding them afterwards does nothing until you rebuild.
+   `PORT` is provided by Railway — do not set it.
+3. Deploy, then add the resulting domain to Supabase →  Authentication → URL
+   Configuration, so email confirmation and password reset links resolve.
+
+Note that `content/news/*.md` is read from disk at request time, not bundled,
+so those files must stay committed — the news pages go empty without them.
+
+Other Node hosts (Fly, Render, a container) work the same way; only the config
+file differs. Vercel can host React Router through its own adapter, but not via
+the Next.js build that used to be here.
 
 ---
 
