@@ -250,6 +250,14 @@ export default function AdminMembersPage({ loaderData }: Route.ComponentProps) {
       </div>
 
       <Form method="get" className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        {/*
+          Carries the active search through a filter change. A GET form submits
+          only its own fields, so without this, applying a filter would
+          silently discard whatever was typed in the search box. `page` is
+          deliberately absent: a new filter should start at page 1.
+        */}
+        {search && <input type="hidden" name="q" value={search} />}
+
         <div className="mb-3 flex items-center gap-2 text-sm font-bold text-maroon-900">
           <SlidersHorizontal size={16} /> Filter anggota
         </div>

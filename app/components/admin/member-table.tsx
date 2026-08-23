@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useFetcher, useSearchParams } from "react-router";
+import { Form, Link, useFetcher, useSearchParams } from "react-router";
 import { Check, ChevronLeft, ChevronRight, Search, Trash2, X } from "lucide-react";
 import { Card, EmptyState, StatusBadge } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
@@ -111,7 +111,7 @@ export function MemberTable({
           submit instead of a request per keystroke, and the result is a
           shareable URL that also works without JavaScript.
         */}
-        <bulk.Form method="get" action="/admin/anggota" className="relative w-full sm:max-w-md">
+        <Form method="get" action="/admin/anggota" className="relative w-full sm:max-w-md">
           {/* Preserve the other filters when searching. */}
           {["status", "role", "korwil"].map((key) =>
             searchParams.get(key) ? (
@@ -139,7 +139,7 @@ export function MemberTable({
               <X size={15} />
             </Link>
           )}
-        </bulk.Form>
+        </Form>
 
         {selected.size > 0 && (
           <div className="flex flex-wrap items-center gap-2">
