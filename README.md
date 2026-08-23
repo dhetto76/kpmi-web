@@ -263,12 +263,13 @@ to the redirect allow-list so email confirmation and password reset links work.
 ## Migration status — Next.js → React Router
 
 This branch replaces Next.js with React Router 8 in framework mode. The public
-site is migrated and verified; the authenticated areas are not yet.
+site and authentication are migrated and verified; the member and admin areas
+are not yet.
 
 | Section | Routes | State |
 | --- | --- | --- |
-| Public site | 9 | **Migrated** — builds, typechecks, all routes render |
-| Auth (`/masuk`, `/daftar`, `/lupa-sandi`, callback) | 4 | Not started |
+| Public site | 9 | **Migrated** — verified against live data |
+| Auth | 5 | **Migrated** — sign-in/out and session persistence verified |
 | Member dashboard | 9 | Not started |
 | Admin panel | 14 | Not started |
 
@@ -294,6 +295,19 @@ git show feat/rbac-role-privileges:"src/app/(admin)/admin/page.tsx"
 | `notFound()` | `throw new Response(…, { status: 404 })` | Caught by the nearest `ErrorBoundary` |
 | `import "server-only"` | `.server.ts` suffix | Enforced by the compiler |
 | `NEXT_PUBLIC_*` | `VITE_*` | Both names still read, so an old `.env.local` keeps working |
+
+### Auth notes
+
+- **Sign-out is POST-only** (`/keluar`). As a GET it would fire from any
+  third-party `<img src>`, logging visitors out unprompted, so the control has
+  to be a `<Form method="post">` — not a link. A stray GET just redirects home.
+- **`?next=` is validated** by `app/lib/redirect.ts` before any redirect.
+  Next.js set that value itself inside middleware; here it round-trips through
+  a public form field, so an unchecked `next=https://evil.example` would turn
+  sign-in into an open redirect. Covered by `app/lib/redirect.test.ts`.
+- **There is no sign-out control in the site header yet.** It lived in the
+  dashboard nav, which is still in `.migration-pending/`. `/keluar` works; only
+  the button is missing until the member area is migrated.
 
 ### Known gaps
 

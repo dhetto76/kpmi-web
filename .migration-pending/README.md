@@ -11,7 +11,6 @@ meantime.
 | --- | --- |
 | `dashboard-nav.tsx` | `next/link`, `next/navigation`, `@/app/(auth)/actions` |
 | `image-upload.tsx` | `next/image` |
-| `validations.ts` | nothing — moved only because its only consumers are the unmigrated forms |
 
 The original Next.js route tree is not here; recover any of it from git:
 

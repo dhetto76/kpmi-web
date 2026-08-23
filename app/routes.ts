@@ -34,4 +34,14 @@ export default [
       route("struktur", "routes/public/profil.struktur.tsx"),
     ]),
   ]),
+
+  layout("routes/auth/layout.tsx", [
+    route("masuk", "routes/auth/masuk.tsx"),
+    route("daftar", "routes/auth/daftar.tsx"),
+    route("lupa-sandi", "routes/auth/lupa-sandi.tsx"),
+    route("keluar", "routes/auth/keluar.tsx"),
+  ]),
+
+  // Not under the auth layout: it renders nothing, only redirects.
+  route("auth/callback", "routes/auth/callback.ts"),
 ] satisfies RouteConfig;
