@@ -33,15 +33,19 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@netlify/vite-plugin-react-router": "^4.0.0",
     "@react-router/dev": "^8",
     "@tailwindcss/vite": "^4.2.2",
     "@types/node": "^22",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.11.0",
     "playwright": "^1.62.1",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
     "vite": "^8.0.3"
   }
 }
