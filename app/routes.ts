@@ -59,4 +59,20 @@ export default [
       route("produk/:id", "routes/member/produk.$id.tsx"),
     ]),
   ]),
+
+  layout("routes/admin/layout.tsx", [
+    ...prefix("admin", [
+      index("routes/admin/admin._index.tsx"),
+      route("anggota", "routes/admin/anggota.tsx"),
+
+      route("bisnis", "routes/admin/bisnis._index.tsx"),
+      route("bisnis/:id", "routes/admin/bisnis.$id.tsx"),
+
+      route("produk", "routes/admin/produk._index.tsx"),
+      route("produk/:id", "routes/admin/produk.$id.tsx"),
+
+      // Still to migrate: korwil, kategori, industri (the three reference
+      // lists), pengguna, and pengaturan. Their nav links 404 until then.
+    ]),
+  ]),
 ] satisfies RouteConfig;

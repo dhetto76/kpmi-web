@@ -269,15 +269,16 @@ to the redirect allow-list so email confirmation and password reset links work.
 ## Migration status — Next.js → React Router
 
 This branch replaces Next.js with React Router 8 in framework mode. The public
-site, authentication, and the member dashboard are migrated and verified; the
-admin panel is not yet.
+site, authentication, and the member dashboard are migrated and verified. The
+admin panel is half done: the verification queues are migrated, the settings
+pages are not.
 
 | Section | Routes | State |
 | --- | --- | --- |
 | Public site | 9 | **Migrated** — verified against live data |
 | Auth | 5 | **Migrated** — sign-in/out and session persistence verified |
 | Member dashboard | 9 | **Migrated** — CRUD and ownership checks verified |
-| Admin panel | 14 | Not started |
+| Admin panel | 6 of 14 | **Partly migrated** — dashboard, anggota, bisnis, produk. Guards verified |
 
 Recover any unmigrated route from git to port it:
 
@@ -328,6 +329,41 @@ git show feat/rbac-role-privileges:"src/app/(admin)/admin/page.tsx"
   same form with `name="intent" value="delete"`, which the action branches on.
   A nested `<Form>` is invalid HTML, and `formNoValidate` keeps the browser
   from blocking the delete on an empty required field.
+
+### Admin notes
+
+- **Still to migrate:** `korwil`, `kategori`, `industri` (the three reference
+  lists), `pengguna`, and `pengaturan`. Their sidebar links 404 until then.
+  Everything else — the dashboard and the anggota / bisnis / produk queues — is
+  ported.
+- **One action, several intents.** Next.js exported a Server Action per
+  operation. A route has a single action, so the operation travels as an
+  `intent` field and every branch re-checks the caller's role, because an
+  action never runs the layout's loader.
+- **Row controls use `useFetcher`, not `<Form>`.** Approve/reject, role, and
+  password controls submit from inside a table row and must not navigate. Each
+  row gets its own fetcher, so one row's pending state and error do not bleed
+  into the others — what `useTransition` gave the Next.js version for free.
+- **The member forms are reused verbatim.** `BusinessForm` and `ProductForm`
+  take an optional `action` path; the admin routes render them pointed at
+  themselves, so the two panels cannot drift apart.
+- **Member search is a GET form, not a debounced `router.replace`.** Search now
+  costs one submit instead of a request per keystroke, and the result is a
+  shareable URL that works without JavaScript.
+
+### Verification limits
+
+Regional (`admin_korwil`) scoping is **not** verified end to end. Granting a
+role requires SQL with `session_replication_role = replica` — the escalation
+trigger refuses it over the REST API, which is the protection working as
+designed — so a throwaway korwil admin could not be created from here.
+
+What *was* verified: anonymous and plain-member callers are blocked from every
+migrated admin route, on both GET and POST, and a member attempting to approve
+themselves or grant themselves `super_admin` was rejected with no database
+change. The korwil scoping code is ported line-for-line from the original and
+RLS enforces the same rule underneath, but exercise it with a real Admin Korwil
+account before relying on it.
 
 ### Known gaps
 
