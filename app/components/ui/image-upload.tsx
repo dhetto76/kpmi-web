@@ -1,7 +1,5 @@
-"use client";
-
 import { useState, useRef } from "react";
-import Image from "next/image";
+import { Image } from "@/components/ui/image";
 import { Upload, X, Loader2, ImageOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";

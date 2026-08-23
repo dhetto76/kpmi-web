@@ -44,4 +44,19 @@ export default [
 
   // Not under the auth layout: it renders nothing, only redirects.
   route("auth/callback", "routes/auth/callback.ts"),
+
+  layout("routes/member/layout.tsx", [
+    ...prefix("dashboard", [
+      index("routes/member/dashboard._index.tsx"),
+      route("profil", "routes/member/profil.tsx"),
+
+      route("bisnis", "routes/member/bisnis._index.tsx"),
+      route("bisnis/baru", "routes/member/bisnis.baru.tsx"),
+      route("bisnis/:id", "routes/member/bisnis.$id.tsx"),
+
+      route("produk", "routes/member/produk._index.tsx"),
+      route("produk/baru", "routes/member/produk.baru.tsx"),
+      route("produk/:id", "routes/member/produk.$id.tsx"),
+    ]),
+  ]),
 ] satisfies RouteConfig;

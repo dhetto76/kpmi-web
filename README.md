@@ -117,31 +117,37 @@ app/
 ├── routes.ts               The route tree, declared explicitly
 ├── globals.css             Tailwind theme + design system
 ├── routes/
-│   └── public/             Marketing site + public browse
-│       ├── layout.tsx            Header, footer, announcement banner
-│       ├── home.tsx              Home
-│       ├── profil.*.tsx          About, vision, structure
-│       ├── bisnis._index.tsx     Directory
-│       ├── bisnis.$slug.tsx      Business detail
-│       ├── produk._index.tsx     Product catalog
-│       ├── berita._index.tsx     News index
-│       ├── berita.$slug.tsx      News detail
-│       └── kontak.tsx
+│   ├── public/             Marketing site + public browse
+│   │   ├── layout.tsx            Header, footer, announcement banner
+│   │   ├── home.tsx              Home
+│   │   ├── profil.*.tsx          About, vision, structure
+│   │   ├── bisnis._index.tsx     Directory
+│   │   ├── bisnis.$slug.tsx      Business detail
+│   │   ├── produk._index.tsx     Product catalog
+│   │   ├── berita._index.tsx     News index
+│   │   ├── berita.$slug.tsx      News detail
+│   │   └── kontak.tsx
+│   ├── auth/               Sign in, register, reset, sign out, callback
+│   └── member/             Dashboard — profile, businesses, products
 ├── components/
 │   ├── ui/                 Button, Card, Field, Input, Badge…
-│   │   └── image.tsx       next/image stand-in (plain <img>)
-│   └── layout/             Header, footer
+│   │   ├── image.tsx       next/image stand-in (plain <img>)
+│   │   └── image-upload.tsx  Storage-backed upload widgets
+│   ├── member/             Business and product forms
+│   └── layout/             Header, footer, dashboard nav
 ├── lib/
 │   ├── supabase/           env / browser client / server client / admin
 │   ├── auth.server.ts      Route guards + role helpers
+│   ├── member.server.ts    Slug, ownership, and form-value helpers
+│   ├── redirect.ts         Validates ?next= against open redirects
 │   ├── settings.server.ts  Site settings + editable reference lists
 │   ├── news.server.ts      Reads content/news/*.md
+│   ├── validations.ts      Zod schemas, shared client + server
 │   ├── reference-data.ts   Korwil, industries, categories (see below)
 │   └── utils.ts            cn, slugify, formatPrice, formatDate
 ├── content/site.ts         Org details, navigation, static copy
 └── types/database.ts       Database types
 
-.migration-pending/         Files still on Next.js APIs — see its README
 supabase/
 ├── migrations/             Version-controlled schema
 └── seed.sql                Category seed data
@@ -210,7 +216,7 @@ footer automatically. Add it to `NAV` in `app/content/site.ts`.
 **Add a field to businesses** — add a column in a new migration under
 `supabase/migrations/`, add it to `Business` in `app/types/database.ts`, to
 `businessSchema` in `app/lib/validations.ts`, then to the business form
-(currently in `.migration-pending/`, pending the member-area migration).
+`app/components/member/business-form.tsx`.
 
 **Add a news item or event** — put the image in `public/images/news/`, create a
 `.md` file in `content/news/`, commit, push. See `content/news/README.md` for
@@ -263,14 +269,14 @@ to the redirect allow-list so email confirmation and password reset links work.
 ## Migration status — Next.js → React Router
 
 This branch replaces Next.js with React Router 8 in framework mode. The public
-site and authentication are migrated and verified; the member and admin areas
-are not yet.
+site, authentication, and the member dashboard are migrated and verified; the
+admin panel is not yet.
 
 | Section | Routes | State |
 | --- | --- | --- |
 | Public site | 9 | **Migrated** — verified against live data |
 | Auth | 5 | **Migrated** — sign-in/out and session persistence verified |
-| Member dashboard | 9 | Not started |
+| Member dashboard | 9 | **Migrated** — CRUD and ownership checks verified |
 | Admin panel | 14 | Not started |
 
 Recover any unmigrated route from git to port it:
@@ -305,9 +311,23 @@ git show feat/rbac-role-privileges:"src/app/(admin)/admin/page.tsx"
   Next.js set that value itself inside middleware; here it round-trips through
   a public form field, so an unchecked `next=https://evil.example` would turn
   sign-in into an open redirect. Covered by `app/lib/redirect.test.ts`.
-- **There is no sign-out control in the site header yet.** It lived in the
-  dashboard nav, which is still in `.migration-pending/`. `/keluar` works; only
-  the button is missing until the member area is migrated.
+- **Sign-out lives in the dashboard nav**, as it did before — the public site
+  header has no sign-out button. That matches the Next.js original; it is not
+  something the migration dropped.
+
+### Member area notes
+
+- **Guards run per route, including on actions.** An action does not run its
+  parent route's loader, so `requireUser` is called again inside every write
+  path. The layout guard alone would leave `POST /dashboard/*` open.
+- **`business_id` moved from an argument to a form field.** Next.js bound it
+  server-side (`createProduct(businessId, formData)`), so the page had already
+  proven ownership. A route action only receives the request, so the id is now
+  caller-supplied and re-checked against `owner_id` before the insert.
+- **Delete is an intent, not a separate route.** The delete button submits the
+  same form with `name="intent" value="delete"`, which the action branches on.
+  A nested `<Form>` is invalid HTML, and `formNoValidate` keeps the browser
+  from blocking the delete on an empty required field.
 
 ### Known gaps
 
