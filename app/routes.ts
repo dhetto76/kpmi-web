@@ -64,6 +64,7 @@ export default [
     ...prefix("admin", [
       index("routes/admin/admin._index.tsx"),
       route("anggota", "routes/admin/anggota.tsx"),
+      route("anggota/:id", "routes/admin/anggota.$id.tsx"),
 
       route("bisnis", "routes/admin/bisnis._index.tsx"),
       route("bisnis/:id", "routes/admin/bisnis.$id.tsx"),
@@ -76,6 +77,7 @@ export default [
       route("kategori", "routes/admin/kategori.tsx"),
       route("industri", "routes/admin/industri.tsx"),
 
+      route("carousel", "routes/admin/carousel.tsx"),
       route("pengguna", "routes/admin/pengguna.tsx"),
       route("pengaturan", "routes/admin/pengaturan.tsx"),
     ]),

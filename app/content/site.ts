@@ -32,10 +32,14 @@ export const ORG = {
 /**
  * Rotating hero banners on the homepage.
  *
+ * These are now the SEED and the FALLBACK, not the live content: banners are
+ * administered at /admin/carousel and stored in the `hero_slides` table, which
+ * this array seeded. The homepage falls back to it when that table is empty or
+ * unreachable, so editing here changes what a fresh database starts with and
+ * what renders if the query fails — not what the site is showing today.
+ *
  * `image` is optional: while it is unset the slide falls back to `gradient`,
- * so the carousel looks finished before any photography exists. To use a real
- * photo, drop a wide JPG into `public/images/hero/` and set `image` to its
- * path — nothing else needs to change.
+ * so the carousel looks finished before any photography exists.
  */
 export type HeroSlide = {
   badge: string;

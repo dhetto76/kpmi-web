@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Image } from "@/components/ui/image";
 import { Link } from "react-router";
 import { ArrowRight, Play } from "lucide-react";
-import { HERO_SLIDES } from "@/content/site";
+import type { HeroSlide } from "@/content/site";
 import { ButtonLink } from "@/components/ui";
 
 /** How long each slide stays on screen. */
@@ -18,8 +18,18 @@ const INTERVAL_MS = 6000;
  *
  * All slides stay mounted and are toggled with opacity so the browser keeps the
  * decoded images around — re-mounting caused a visible flash on each rotation.
+ *
+ * Slides are passed in rather than imported: they are administered from
+ * /admin/carousel and read from the database by the homepage loader, which
+ * falls back to the HERO_SLIDES seed when the table is empty or unreachable.
  */
-export function HeroCarousel({ children }: { children?: React.ReactNode }) {
+export function HeroCarousel({
+  slides,
+  children,
+}: {
+  slides: HeroSlide[];
+  children?: React.ReactNode;
+}) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   // Set once on mount so the interval is skipped for users who asked for less
@@ -35,17 +45,27 @@ export function HeroCarousel({ children }: { children?: React.ReactNode }) {
     return () => mq.removeEventListener("change", sync);
   }, []);
 
-  const go = useCallback((next: number) => {
-    setIndex((next + HERO_SLIDES.length) % HERO_SLIDES.length);
-  }, []);
+  const count = slides.length;
+
+  // An admin can hide slides while someone is on the page, leaving the stored
+  // index past the end. Clamped on the way out rather than corrected in an
+  // effect, which would render one empty frame first.
+  const current = index < count ? index : 0;
+
+  const go = useCallback(
+    (next: number) => {
+      setIndex((next + count) % count);
+    },
+    [count],
+  );
 
   useEffect(() => {
-    if (paused || reducedMotion || HERO_SLIDES.length < 2) return;
+    if (paused || reducedMotion || count < 2) return;
     const id = setInterval(() => {
-      setIndex((i) => (i + 1) % HERO_SLIDES.length);
+      setIndex((i) => (i + 1) % count);
     }, INTERVAL_MS);
     return () => clearInterval(id);
-  }, [paused, reducedMotion]);
+  }, [paused, reducedMotion, count]);
 
   // Touch swipe. Tracked in a ref so a horizontal drag does not re-render on
   // every move event.
@@ -56,7 +76,7 @@ export function HeroCarousel({ children }: { children?: React.ReactNode }) {
   function onTouchEnd(e: React.TouchEvent) {
     if (touchX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchX.current;
-    if (Math.abs(dx) > 50) go(index + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 50) go(current + (dx < 0 ? 1 : -1));
     touchX.current = null;
   }
 
@@ -73,15 +93,15 @@ export function HeroCarousel({ children }: { children?: React.ReactNode }) {
       aria-label="Banner utama KPMI"
     >
       {/* ------------------------------------------------ Slide backgrounds */}
-      {HERO_SLIDES.map((slide, i) => (
+      {slides.map((slide, i) => (
         <div
           key={slide.title}
           className="absolute inset-0 -z-10 transition-opacity duration-1000 ease-out motion-reduce:transition-none"
           style={{
-            opacity: i === index ? 1 : 0,
+            opacity: i === current ? 1 : 0,
             background: slide.image ? undefined : slide.gradient,
           }}
-          aria-hidden={i !== index}
+          aria-hidden={i !== current}
         >
           {slide.image && (
             <Image
@@ -106,15 +126,15 @@ export function HeroCarousel({ children }: { children?: React.ReactNode }) {
       {/* ------------------------------------------------------- Slide copy */}
       <div className="shell relative pb-28">
         <div className="mx-auto max-w-3xl text-center">
-          {HERO_SLIDES.map((slide, i) => (
+          {slides.map((slide, i) => (
             <div
               key={slide.title}
               className={
-                i === index
+                i === current
                   ? "transition-opacity duration-700"
                   : "pointer-events-none absolute inset-0 opacity-0"
               }
-              aria-hidden={i !== index}
+              aria-hidden={i !== current}
             >
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold text-gold-300 backdrop-blur">
                 <span className="text-gold-400">★</span>
@@ -145,16 +165,16 @@ export function HeroCarousel({ children }: { children?: React.ReactNode }) {
           ))}
 
           {/* --------------------------------------------- Dot indicators */}
-          {HERO_SLIDES.length > 1 && (
+          {slides.length > 1 && (
             <div className="mt-12 flex justify-center gap-2">
-              {HERO_SLIDES.map((slide, i) => (
+              {slides.map((slide, i) => (
                 <button
                   key={slide.title}
                   onClick={() => go(i)}
                   aria-label={`Tampilkan banner ${i + 1}: ${slide.title}`}
-                  aria-current={i === index}
+                  aria-current={i === current}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === index
+                    i === current
                       ? "w-8 bg-gold-400"
                       : "w-4 bg-white/35 hover:bg-white/60"
                   }`}

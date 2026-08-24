@@ -1,6 +1,6 @@
 
 import { Link, useLocation } from "react-router";
-import { Boxes, Building2, LayoutDashboard, MapPin, Package, Settings, Tags, UserCog, Users } from "lucide-react";
+import { Boxes, Building2, GalleryHorizontal, LayoutDashboard, MapPin, Package, Settings, Tags, UserCog, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const MAIN_NAV = [
@@ -11,6 +11,7 @@ const MAIN_NAV = [
 ];
 
 const SETTINGS_NAV = [
+  { href: "/admin/carousel", label: "Carousel Beranda", icon: GalleryHorizontal },
   { href: "/admin/korwil", label: "Korwil", icon: MapPin },
   { href: "/admin/kategori", label: "Kategori Produk", icon: Tags },
   { href: "/admin/industri", label: "Industri", icon: Boxes },
