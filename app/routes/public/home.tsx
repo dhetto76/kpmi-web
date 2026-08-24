@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import type { Route } from "./+types/home";
 import { MANFAAT, VISI } from "@/content/site";
+import { getHeroSlides } from "@/lib/hero.server";
 import { getAllNews } from "@/lib/news.server";
 import { formatDate } from "@/lib/utils";
 import { KORWIL } from "@/lib/reference-data";
@@ -40,11 +41,14 @@ export async function loader({ request }: Route.LoaderArgs) {
     // Keep the zeroes.
   }
 
-  return data({ stats, news: getAllNews().slice(0, 3) }, { headers });
+  return data(
+    { stats, news: getAllNews().slice(0, 3), heroSlides: await getHeroSlides(supabase) },
+    { headers },
+  );
 }
 
 export default function HomePage({ loaderData }: Route.ComponentProps) {
-  const { stats, news } = loaderData;
+  const { stats, news, heroSlides } = loaderData;
 
   const tiles = [
     { value: stats.members.toLocaleString("id-ID"), label: "Anggota" },
@@ -56,7 +60,7 @@ export default function HomePage({ loaderData }: Route.ComponentProps) {
   return (
     <>
       {/* ------------------------------------------------------------ Hero */}
-      <HeroCarousel>
+      <HeroCarousel slides={heroSlides}>
         <div className="mx-auto mt-16 grid max-w-4xl grid-cols-2 gap-4 lg:grid-cols-4">
           {tiles.map((s) => (
             <div

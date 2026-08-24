@@ -97,6 +97,9 @@ Sign in with your own super_admin account.
       box to filter. **Do not add, rename, retire, or delete**
 - [ ] `/admin/kategori` and `/admin/industri` do the same
 - [ ] `/admin/pengaturan` loads with current values. **Do not save**
+- [ ] `/admin/carousel` lists the four seeded banners in order, each with a
+      preview matching the homepage. Reorder one with ▲/▼, then put it back.
+      Edit a title and save — the preview and the homepage both follow
 
 ---
 
@@ -120,6 +123,8 @@ button on `/admin/anggota` — that exercises a real feature too.
 - [ ] `/admin/korwil` renders read-only, ending with "Hanya Super Admin yang
       dapat mengubah daftar ini" — no Add box, no row action buttons
 - [ ] `/admin/pengaturan` renders with every field disabled and no Save button
+- [ ] `/admin/carousel` renders read-only, ending with "Hanya Super Admin yang
+      dapat mengubah carousel beranda" — no Tambah banner, no card controls
 - [ ] Sign out afterwards
 
 If any of these show data outside Surabaya, **stop and report it** — that is a

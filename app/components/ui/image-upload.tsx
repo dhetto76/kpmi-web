@@ -7,13 +7,15 @@ import { cn } from "@/lib/utils";
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
 
-type Bucket = "avatars" | "businesses" | "products";
+type Bucket = "avatars" | "businesses" | "products" | "hero";
 
 async function uploadFile(bucket: Bucket, file: File, userId: string) {
   const supabase = createClient();
 
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  // Storage policies require the first path segment to be the user's id.
+  // The member buckets' policies require the first path segment to be the
+  // user's id. `hero` is gated on the super-admin role instead of the path,
+  // but keeps the same layout so every bucket reads the same way.
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
 
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
