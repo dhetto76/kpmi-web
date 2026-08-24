@@ -49,6 +49,35 @@ function one<T>(value: T | T[] | null | undefined): T | undefined {
   return Array.isArray(value) ? value[0] : (value ?? undefined);
 }
 
+/**
+ * Null when the caller may administer this member, an error otherwise.
+ *
+ * Scope is the member's OWN korwil (profiles.korwil), not managed_korwil — the
+ * region a member belongs to is what a korwil admin oversees. The matching RLS
+ * policy is "korwil admins update profiles in their region".
+ */
+export async function scopedProfile(
+  supabase: SupabaseClient,
+  ctx: AdminContext,
+  id: string,
+): Promise<{ error: string } | null> {
+  if (!UUID_RE.test(id)) return { error: "ID anggota tidak valid." };
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("korwil")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!data) return { error: "Anggota tidak ditemukan." };
+
+  if (!ctx.isSuperAdmin && (!ctx.managedKorwil || data.korwil !== ctx.managedKorwil)) {
+    return { error: OUT_OF_SCOPE };
+  }
+
+  return null;
+}
+
 /** Null when the caller may administer this business, an error otherwise. */
 export async function scopedBusiness(
   supabase: SupabaseClient,

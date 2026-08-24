@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Form, Link, useFetcher, useSearchParams } from "react-router";
-import { Check, ChevronLeft, ChevronRight, Search, Trash2, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Pencil, Search, Trash2, X } from "lucide-react";
 import { Card, EmptyState, StatusBadge } from "@/components/ui";
 import { formatDate } from "@/lib/utils";
 import type { ApprovalStatus, UserRole } from "@/types/database";
@@ -226,8 +226,13 @@ export function MemberTable({
                       <input type="checkbox" checked={selected.has(member.id)} onChange={() => toggle(member.id)} disabled={!selectable || pending} aria-label={`Pilih ${member.full_name || "anggota tanpa nama"}`} title={selectable ? "Pilih anggota" : "Akun administrator tidak dapat dihapus"} className="size-4 accent-maroon-600" />
                     </td>
                     <td className="px-5 py-3">
-                      <div className="font-semibold text-gray-900">{member.full_name || "(tanpa nama)"}</div>
-                      {member.role !== "member" && <span className="text-xs font-bold text-gold-600">{memberRoleLabel(member.role, member.managed_korwil)}</span>}
+                      <Link
+                        to={`/admin/anggota/${member.id}`}
+                        className="font-semibold text-gray-900 hover:text-maroon-600 hover:underline"
+                      >
+                        {member.full_name || "(tanpa nama)"}
+                      </Link>
+                      {member.role !== "member" && <span className="block text-xs font-bold text-gold-600">{memberRoleLabel(member.role, member.managed_korwil)}</span>}
                     </td>
                     <td className="px-5 py-3 text-gray-600">{member.korwil ?? "—"}</td>
                     <td className="px-5 py-3 text-gray-600">{member.phone ?? "—"}</td>
@@ -241,6 +246,13 @@ export function MemberTable({
                     <td className="px-5 py-3">
                       <div className="flex items-start gap-2">
                         <StatusControl kind="member" id={member.id} status={member.status} />
+                        <Link
+                          to={`/admin/anggota/${member.id}`}
+                          aria-label={`Ubah data ${member.full_name || "anggota tanpa nama"}`}
+                          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-bold text-gray-700 hover:border-maroon-200 hover:bg-maroon-50 hover:text-maroon-700"
+                        >
+                          <Pencil size={13} /> Ubah
+                        </Link>
                         {(isSuperAdmin || member.role === "member") && (
                           <PasswordControl
                             id={member.id}
