@@ -35,6 +35,12 @@ type KorwilSummaryRow = {
   published_products: number;
 };
 
+/** One row of the `industry_summary` RPC. */
+type IndustrySummaryRow = { industry: string; businesses: number; approved_businesses: number };
+
+/** One row of the `product_category_summary` RPC. */
+type CategorySummaryRow = { category: string; products: number; published_products: number };
+
 const CARD = "rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.04)]";
 
 const MEMBER_STATUS_OPTIONS = [
@@ -44,12 +50,15 @@ const MEMBER_STATUS_OPTIONS = [
   { value: "rejected", label: "Ditolak" },
 ] as const;
 
-function distribute(total: number, weights: number[]) {
-  if (total === 0) return weights.map(() => 0);
-  const weightTotal = weights.reduce((sum, value) => sum + value, 0);
-  const values = weights.map((weight) => Math.floor((total * weight) / weightTotal));
-  values[0] += total - values.reduce((sum, value) => sum + value, 0);
-  return values;
+/**
+ * A donut has room for a handful of slices. Keep the largest few and fold the
+ * remainder into one "Lainnya" slice so the ring still totals the real count.
+ */
+function topSlices(items: ListItem[], limit = 5): ListItem[] {
+  if (items.length <= limit) return items;
+  const head = items.slice(0, limit - 1);
+  const rest = items.slice(limit - 1).reduce((sum, item) => sum + item.value, 0);
+  return rest > 0 ? [...head, { label: "Lainnya", value: rest }] : head;
 }
 
 function MiniBarList({ items, color }: { items: ListItem[]; color: string }) {
@@ -170,6 +179,9 @@ function DonutPanel({ title, subtitle, items, href, compact = false }: { title: 
   return (
     <section className={`${CARD} flex min-w-0 flex-col p-3.5`}>
       <PanelHeading title={title} subtitle={subtitle} />
+      {items.length === 0 ? (
+        <p className="mt-4 flex flex-1 items-center justify-center text-[10px] text-slate-400">Belum ada data untuk filter ini.</p>
+      ) : (
       <div className={`mt-4 flex flex-1 items-center ${compact ? "gap-4" : "gap-5"}`}>
         <Donut items={items} size={compact ? 98 : 136} />
         <div className="min-w-0 flex-1 space-y-2.5">
@@ -182,6 +194,7 @@ function DonutPanel({ title, subtitle, items, href, compact = false }: { title: 
           ))}
         </div>
       </div>
+      )}
       {href && <Link to={href} className="mt-3 flex items-center justify-end gap-2 text-[10px] font-semibold text-slate-700 hover:text-maroon-600">Lihat semua <ArrowRight size={13} /></Link>}
     </section>
   );
@@ -205,11 +218,21 @@ export async function loader({ request }: Route.LoaderArgs) {
   const dateFrom = validDate(params.get("from"));
   const dateTo = validDate(params.get("to"));
 
-  const { data: summaryRows, error } = await supabase.rpc("korwil_summary", {
+  const range = {
     date_from: dateFrom ? `${dateFrom}T00:00:00.000Z` : null,
     date_to: dateTo ? `${dateTo}T23:59:59.999Z` : null,
-  });
-  if (error) throw new Response(error.message, { status: 500 });
+  };
+
+  const [summary, industrySummary, categorySummary] = await Promise.all([
+    supabase.rpc("korwil_summary", range),
+    supabase.rpc("industry_summary", { ...range, region }),
+    supabase.rpc("product_category_summary", { ...range, region }),
+  ]);
+
+  const failure = summary.error ?? industrySummary.error ?? categorySummary.error;
+  if (failure) throw new Response(failure.message, { status: 500 });
+
+  const summaryRows = summary.data;
 
   // The RPC scopes rows to the caller's administrative region; a super admin
   // narrowing the view with the korwil filter is applied here.
@@ -229,6 +252,18 @@ export async function loader({ request }: Route.LoaderArgs) {
       region,
       dateFrom,
       dateTo,
+      industryRows: topSlices(
+        ((industrySummary.data ?? []) as IndustrySummaryRow[]).map((row) => ({
+          label: row.industry,
+          value: Number(row.businesses),
+        })),
+      ),
+      categoryRows: topSlices(
+        ((categorySummary.data ?? []) as CategorySummaryRow[]).map((row) => ({
+          label: row.category,
+          value: Number(row.products),
+        })),
+      ),
       korwilRows: rows.map((row) => ({
         korwil: row.korwil,
         members: Number(row.members),
@@ -256,7 +291,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) {
-  const { isSuperAdmin, managedKorwil, requestedKorwil, requestedStatus, dateFrom, dateTo, counts, korwilRows } = loaderData;
+  const { isSuperAdmin, managedKorwil, requestedKorwil, requestedStatus, dateFrom, dateTo, counts, korwilRows, industryRows, categoryRows } = loaderData;
   const ctx = { isSuperAdmin, managedKorwil };
 
   const memberTotal = counts.members;
@@ -282,19 +317,17 @@ export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) 
     .sort((a, b) => b.value - a.value)
     .slice(0, 7);
 
-  // TODO: industry and category breakdowns are still derived from the totals
-  // rather than grouped by businesses.industry / products.category.
-  const industryValues = distribute(businessTotal, [312, 168, 142, 116, 98]);
-  const productValues = distribute(productTotal, [642, 486, 342, 286, 185]);
-  const industries = ["Perdagangan", "Kuliner", "Jasa", "Manufaktur", "Teknologi"].map((label, index) => ({ label, value: industryValues[index] }));
-  const categories = ["Makanan & Minuman", "Fashion", "Kesehatan", "Kecantikan", "Elektronik"].map((label, index) => ({ label, value: productValues[index] }));
+  const industries = industryRows;
+  const categories = categoryRows;
   const statusItems: DonutItem[] = [
     { label: "Disetujui", value: approvedMembers.count, color: "#5b9c61" },
     { label: "Menunggu", value: pendingMembers.count, color: "#f4a12d" },
     { label: "Ditolak", value: rejectedMembers.count, color: "#c53d3d" },
   ];
-  const industryDonut = industries.map((item, index) => ({ ...item, color: ["#358457", "#5f9f6e", "#3f5064", "#718096", "#a4acb7"][index] }));
-  const productDonut = categories.map((item, index) => ({ ...item, color: ["#d62f32", "#e85632", "#f69528", "#be4a48", "#d98a88"][index] }));
+  const paint = (items: ListItem[], palette: string[]): DonutItem[] =>
+    items.map((item, index) => ({ ...item, color: palette[index % palette.length] }));
+  const industryDonut = paint(industries, ["#358457", "#5f9f6e", "#3f5064", "#718096", "#a4acb7"]);
+  const productDonut = paint(categories, ["#d62f32", "#e85632", "#f69528", "#be4a48", "#d98a88"]);
 
   const tableRows = korwilRows.map((row) => ({
     name: row.korwil,
