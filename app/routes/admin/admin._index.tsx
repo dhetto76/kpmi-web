@@ -22,7 +22,27 @@ const format = new Intl.NumberFormat("id-ID");
 type ListItem = { label: string; value: number };
 type DonutItem = ListItem & { color: string };
 
+/** One row of the `korwil_summary` RPC. Postgres bigints arrive as strings. */
+type KorwilSummaryRow = {
+  korwil: string;
+  members: number;
+  approved_members: number;
+  pending_members: number;
+  rejected_members: number;
+  businesses: number;
+  approved_businesses: number;
+  products: number;
+  published_products: number;
+};
+
 const CARD = "rounded-xl border border-slate-200/80 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.04)]";
+
+const MEMBER_STATUS_OPTIONS = [
+  { value: "", label: "Semua Status" },
+  { value: "approved", label: "Disetujui" },
+  { value: "pending", label: "Menunggu" },
+  { value: "rejected", label: "Ditolak" },
+] as const;
 
 function distribute(total: number, weights: number[]) {
   if (total === 0) return weights.map(() => 0);
@@ -119,7 +139,7 @@ function PanelHeading({ title, subtitle, action }: { title: string; subtitle: st
 function BarChart({ items }: { items: ListItem[] }) {
   const max = Math.max(...items.map((item) => item.value), 1);
   return (
-    <div className="mt-4 grid h-[148px] grid-cols-7 items-end gap-2 border-b border-slate-200 bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_48px,#f1f5f9_49px)] px-2">
+    <div className="mt-4 grid h-[148px] items-end gap-2 border-b border-slate-200 bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_48px,#f1f5f9_49px)] px-2" style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}>
       {items.map((item) => (
         <div key={item.label} className="flex h-full min-w-0 flex-col justify-end text-center">
           <span className="mb-1 text-[9px] font-semibold tabular-nums text-slate-700">{item.value}</span>
@@ -177,63 +197,58 @@ export async function loader({ request }: Route.LoaderArgs) {
     : "";
   const region = ctx.isSuperAdmin ? requestedKorwil || null : ctx.managedKorwil;
 
+  const requestedStatus =
+    (["approved", "pending", "rejected"] as const).find((value) => value === params.get("status")) ?? "";
+
   const validDate = (value: string | null) =>
     value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : "";
   const dateFrom = validDate(params.get("from"));
   const dateTo = validDate(params.get("to"));
 
-  const applyDateRange = <T extends { gte: (column: string, value: string) => T; lte: (column: string, value: string) => T }>(query: T) => {
-    let filtered = query;
-    if (dateFrom) filtered = filtered.gte("created_at", `${dateFrom}T00:00:00.000Z`);
-    if (dateTo) filtered = filtered.lte("created_at", `${dateTo}T23:59:59.999Z`);
-    return filtered;
-  };
+  const { data: summaryRows, error } = await supabase.rpc("korwil_summary", {
+    date_from: dateFrom ? `${dateFrom}T00:00:00.000Z` : null,
+    date_to: dateTo ? `${dateTo}T23:59:59.999Z` : null,
+  });
+  if (error) throw new Response(error.message, { status: 500 });
 
-  const profileQuery = () => {
-    let query = supabase.from("profiles").select("*", { count: "exact", head: true });
-    if (region) query = query.eq("korwil", region);
-    return applyDateRange(query);
-  };
-  const businessQuery = () => {
-    let query = supabase.from("businesses").select("*, owner:profiles!inner(korwil)", { count: "exact", head: true });
-    if (region) query = query.eq("owner.korwil", region);
-    return applyDateRange(query);
-  };
-  const productQuery = () => {
-    const baseQuery = region
-      ? supabase.from("products").select("*, business:businesses!inner(owner:profiles!inner(korwil))", { count: "exact", head: true }).eq("business.owner.korwil", region)
-      : supabase.from("products").select("*", { count: "exact", head: true });
-    return applyDateRange(baseQuery);
-  };
+  // The RPC scopes rows to the caller's administrative region; a super admin
+  // narrowing the view with the korwil filter is applied here.
+  const rows = ((summaryRows ?? []) as KorwilSummaryRow[]).filter(
+    (row) => !region || row.korwil === region,
+  );
 
-  const [members, approvedMembers, pendingMembers, rejectedMembers, businesses, approvedBusinesses, products, publishedProducts] = await Promise.all([
-    profileQuery(),
-    profileQuery().eq("status", "approved"),
-    profileQuery().eq("status", "pending"),
-    profileQuery().eq("status", "rejected"),
-    businessQuery(),
-    businessQuery().eq("status", "approved"),
-    productQuery(),
-    productQuery().eq("is_published", true),
-  ]);
+  const sum = (pick: (row: KorwilSummaryRow) => number) =>
+    rows.reduce((total, row) => total + Number(pick(row)), 0);
 
   return data(
     {
       isSuperAdmin: ctx.isSuperAdmin,
       managedKorwil: ctx.managedKorwil,
       requestedKorwil,
+      requestedStatus,
       region,
       dateFrom,
       dateTo,
+      korwilRows: rows.map((row) => ({
+        korwil: row.korwil,
+        members: Number(row.members),
+        approvedMembers: Number(row.approved_members),
+        pendingMembers: Number(row.pending_members),
+        rejectedMembers: Number(row.rejected_members),
+        businesses: Number(row.businesses),
+        approvedBusinesses: Number(row.approved_businesses),
+        products: Number(row.products),
+        publishedProducts: Number(row.published_products),
+      })),
       counts: {
-        members: members.count ?? 0,
-        approvedMembers: approvedMembers.count ?? 0,
-        pendingMembers: pendingMembers.count ?? 0,
-        rejectedMembers: rejectedMembers.count ?? 0,
-        businesses: businesses.count ?? 0,
-        approvedBusinesses: approvedBusinesses.count ?? 0,
-        products: products.count ?? 0,
-        publishedProducts: publishedProducts.count ?? 0,
+        members: sum((row) => row.members),
+        approvedMembers: sum((row) => row.approved_members),
+        pendingMembers: sum((row) => row.pending_members),
+        rejectedMembers: sum((row) => row.rejected_members),
+        businesses: sum((row) => row.businesses),
+        approvedBusinesses: sum((row) => row.approved_businesses),
+        products: sum((row) => row.products),
+        publishedProducts: sum((row) => row.published_products),
       },
     },
     { headers },
@@ -241,7 +256,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) {
-  const { isSuperAdmin, managedKorwil, requestedKorwil, region, dateFrom, dateTo, counts } = loaderData;
+  const { isSuperAdmin, managedKorwil, requestedKorwil, requestedStatus, dateFrom, dateTo, counts, korwilRows } = loaderData;
   const ctx = { isSuperAdmin, managedKorwil };
 
   const memberTotal = counts.members;
@@ -253,14 +268,24 @@ export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) 
   const approvedBusinesses = { count: counts.approvedBusinesses };
   const publishedProducts = { count: counts.publishedProducts };
 
-  const korwilWeights = region ? [1] : [320, 280, 210, 180, 120, 80, 58];
-  const korwilValues = distribute(memberTotal, korwilWeights);
+  const memberByStatus = (row: (typeof korwilRows)[number]) =>
+    requestedStatus === "approved" ? row.approvedMembers
+    : requestedStatus === "pending" ? row.pendingMembers
+    : requestedStatus === "rejected" ? row.rejectedMembers
+    : row.members;
+
+  const korwil = korwilRows.map((row) => ({ label: row.korwil, value: row.members }));
+  // There are 45 korwil, far more than the chart can label legibly, so it
+  // shows the largest regions for the selected status.
+  const korwilChart = [...korwilRows]
+    .map((row) => ({ label: row.korwil, value: memberByStatus(row) }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 7);
+
+  // TODO: industry and category breakdowns are still derived from the totals
+  // rather than grouped by businesses.industry / products.category.
   const industryValues = distribute(businessTotal, [312, 168, 142, 116, 98]);
   const productValues = distribute(productTotal, [642, 486, 342, 286, 185]);
-  const regionalBusinessValues = distribute(businessTotal, region ? [1] : [210, 186, 152, 132, 96]);
-  const regionalProductValues = distribute(productTotal, region ? [1] : [642, 486, 342, 286, 185]);
-  const korwilNames = region ? [region] : ["Surabaya", "Bandung", "Yogyakarta", "Jakarta", "Makassar", "Medan", "Semarang"];
-  const korwil = korwilNames.map((label, index) => ({ label, value: korwilValues[index] }));
   const industries = ["Perdagangan", "Kuliner", "Jasa", "Manufaktur", "Teknologi"].map((label, index) => ({ label, value: industryValues[index] }));
   const categories = ["Makanan & Minuman", "Fashion", "Kesehatan", "Kecantikan", "Elektronik"].map((label, index) => ({ label, value: productValues[index] }));
   const statusItems: DonutItem[] = [
@@ -271,16 +296,17 @@ export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) 
   const industryDonut = industries.map((item, index) => ({ ...item, color: ["#358457", "#5f9f6e", "#3f5064", "#718096", "#a4acb7"][index] }));
   const productDonut = categories.map((item, index) => ({ ...item, color: ["#d62f32", "#e85632", "#f69528", "#be4a48", "#d98a88"][index] }));
 
-  const tableRows = korwil.slice(0, 5).map((item, index) => {
-    const approved = Math.max(0, Math.round(item.value * 0.93));
-    const waiting = Math.max(0, Math.round(item.value * 0.05));
-    const rejected = Math.max(0, item.value - approved - waiting);
-    const business = regionalBusinessValues[index];
-    const activeBusiness = Math.round(business * 0.91);
-    const products = regionalProductValues[index];
-    const activeProducts = Math.round(products * 0.93);
-    return { name: item.label, members: item.value, approved, waiting, rejected, business, activeBusiness, products, activeProducts };
-  });
+  const tableRows = korwilRows.map((row) => ({
+    name: row.korwil,
+    members: row.members,
+    approved: row.approvedMembers,
+    waiting: row.pendingMembers,
+    rejected: row.rejectedMembers,
+    business: row.businesses,
+    activeBusiness: row.approvedBusinesses,
+    products: row.products,
+    activeProducts: row.publishedProducts,
+  }));
   return (
     <div className="space-y-3.5">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
@@ -289,6 +315,7 @@ export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) 
           <p className="mt-1 text-xs text-slate-500">Ringkasan data anggota, usaha, dan produk berdasarkan korwil dan status.</p>
         </div>
         <Form method="get" className={`${CARD} flex w-full flex-wrap items-end gap-2 p-2 sm:w-auto`}>
+          {requestedStatus && <input type="hidden" name="status" value={requestedStatus} />}
           <label className="min-w-[180px] flex-1 sm:flex-none">
             <span className="mb-1 block text-[9px] font-bold uppercase tracking-wide text-slate-500">Korwil</span>
             <span className="relative block">
@@ -317,7 +344,7 @@ export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) 
             </div>
           </div>
           <button type="submit" className="inline-flex h-9 items-center gap-2 rounded-md bg-maroon-600 px-3.5 text-[10px] font-bold text-white transition-colors hover:bg-maroon-700"><Filter size={13} /> Terapkan</button>
-          {(requestedKorwil || dateFrom || dateTo) && <Link to="/admin" className="inline-flex h-9 items-center rounded-md border border-slate-200 px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Reset</Link>}
+          {(requestedKorwil || requestedStatus || dateFrom || dateTo) && <Link to="/admin" className="inline-flex h-9 items-center rounded-md border border-slate-200 px-3 text-[10px] font-semibold text-slate-600 hover:bg-slate-50">Reset</Link>}
         </Form>
       </div>
 
@@ -329,8 +356,35 @@ export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) 
 
       <div className="grid gap-3.5 lg:grid-cols-2 min-[1700px]:grid-cols-[repeat(13,minmax(0,1fr))]">
         <section className={`${CARD} min-w-0 p-3.5 min-[1700px]:col-span-4`}>
-          <PanelHeading title="Anggota per Korwil" subtitle="Jumlah anggota aktif per korwil" action={<button className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-[9px] font-semibold">Semua Status <ChevronDown size={12} /></button>} />
-          <BarChart items={korwil} />
+          <PanelHeading
+            title="Anggota per Korwil"
+            subtitle={`Jumlah anggota per korwil — ${(MEMBER_STATUS_OPTIONS.find((option) => option.value === requestedStatus) ?? MEMBER_STATUS_OPTIONS[0]).label.toLowerCase()}`}
+            action={
+              <Form method="get" className="shrink-0">
+                {requestedKorwil && <input type="hidden" name="korwil" value={requestedKorwil} />}
+                {dateFrom && <input type="hidden" name="from" value={dateFrom} />}
+                {dateTo && <input type="hidden" name="to" value={dateTo} />}
+                <label className="relative block">
+                  <span className="sr-only">Filter status anggota</span>
+                  <select
+                    name="status"
+                    defaultValue={requestedStatus}
+                    onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                    className="h-[26px] w-full appearance-none rounded-md border border-slate-200 bg-white pl-3 pr-7 text-[9px] font-semibold text-slate-700 outline-none focus:border-maroon-500"
+                  >
+                    {MEMBER_STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                </label>
+                <noscript><button type="submit" className="mt-1 text-[9px] font-semibold text-slate-600">Terapkan</button></noscript>
+              </Form>
+            }
+          />
+          {korwilChart.length > 0
+            ? <BarChart items={korwilChart} />
+            : <p className="mt-4 flex h-[148px] items-center justify-center text-[10px] text-slate-400">Belum ada data anggota untuk filter ini.</p>}
           <Link to="/admin/anggota" className="mt-4 flex items-center justify-end gap-2 text-[10px] font-semibold text-slate-700 hover:text-maroon-600">Lihat semua korwil <ArrowRight size={13} /></Link>
         </section>
         <div className="min-[1700px]:col-span-3"><DonutPanel title="Usaha per Industri" subtitle="Distribusi usaha berdasarkan industri" items={industryDonut} href="/admin/bisnis" /></div>
@@ -360,9 +414,12 @@ export default function AdminOverviewPage({ loaderData }: Route.ComponentProps) 
                   <tr key={row.name} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="px-3 py-2.5 font-semibold"><span className="flex items-center gap-2"><MapPin size={13} className="text-slate-500" />{row.name}</span></td>
                     {[row.members, row.approved, row.waiting, row.rejected, row.business, row.activeBusiness, row.business - row.activeBusiness, row.products, row.activeProducts, row.products - row.activeProducts].map((value, index) => <td key={index} className="border-l border-slate-100 px-2 py-2.5 text-center tabular-nums">{format.format(value)}</td>)}
-                    <td className="border-l border-slate-100 px-3 py-2 text-center"><Link to="/admin/anggota" className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 font-semibold hover:border-maroon-200 hover:text-maroon-600">Lihat detail <ArrowRight size={11} /></Link></td>
+                    <td className="border-l border-slate-100 px-3 py-2 text-center"><Link to={`/admin/anggota?korwil=${encodeURIComponent(row.name)}`} className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 font-semibold hover:border-maroon-200 hover:text-maroon-600">Lihat detail <ArrowRight size={11} /></Link></td>
                   </tr>
                 ))}
+                {tableRows.length === 0 && (
+                  <tr><td colSpan={12} className="px-3 py-8 text-center text-[10px] text-slate-400">Belum ada data untuk filter ini.</td></tr>
+                )}
               </tbody>
               <tfoot>
                 <tr className="bg-red-50/50 font-extrabold text-slate-800">
